@@ -9,4 +9,5 @@ brew install stow
 
 stow zsh
 stow tmux
+stow git
 ```

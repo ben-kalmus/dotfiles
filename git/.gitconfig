@@ -1,0 +1,10 @@
+# This is Git's per-user configuration file.
+[include]
+    path = ~/.gitconfig.local
+[user]
+	name = Ben Kalmus
+    email = ben.kalmus@algolia.com
+[url "git@github.com:"]
+	insteadOf = https://github.com/
+[push]
+	autoSetupRemote = true
