@@ -113,6 +113,12 @@ fi
 # export ARCHFLAGS="-arch $(uname -m)"
 
 # =============================================
+# System configuration
+# =============================================
+ulimit -n 100000        # increase max open files
+ulimit -u 2048          # increase max user processes
+
+# =============================================
 # Keybinds
 # =============================================
 
