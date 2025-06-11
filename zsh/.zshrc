@@ -145,6 +145,7 @@ autoload -U compinit && compinit
 
 # Set up fzf key bindings and fuzzy completion
 source <(fzf --zsh)
+
 # The following lines have been added by Docker Desktop to enable Docker CLI completions.
 fpath=(/Users/ben.kalmus/.docker/completions $fpath)
 autoload -Uz compinit
