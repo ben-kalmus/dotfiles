@@ -22,6 +22,7 @@ alias gmrg='git mergetool'
 alias gs='git status && git --no-pager diff --stat'
 alias gits="git status"
 alias gp='git push'
+alias gpl='git pull'
 #alias gu='git reset --mixed HEAD'
 alias gpf="git push -f"
 alias gfa="git fetch --all"
