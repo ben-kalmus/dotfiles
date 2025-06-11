@@ -10,5 +10,5 @@ brew install stow
 stow zsh
 stow tmux
 stow git
-stow kitty
+stow wezterm
 ```
