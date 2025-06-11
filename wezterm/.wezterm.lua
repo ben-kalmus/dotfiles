@@ -13,6 +13,6 @@ config.font_size = 13
 config.font = wezterm.font("Fira Code")
 config.color_scheme = "Tokyo Night Moon"
 
-config.term = "screen-256color"
+config.term = "xterm-256color"
 -- Finally, return the configuration to wezterm:
 return config
