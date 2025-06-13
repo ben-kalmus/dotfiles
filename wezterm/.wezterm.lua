@@ -15,5 +15,27 @@ config.color_scheme = "Tokyo Night Moon"
 config.window_background_opacity = 0.95
 
 config.term = "xterm-256color"
+
+-- keybinds link https://wezterm.org/config/default-keys.html
+-- remove ctrl - and ctrl = which resize window
+
+config.keys = {
+	{
+		key = "m",
+		mods = "CMD",
+		action = wezterm.action.DisableDefaultAssignment,
+	},
+	{
+		key = "-",
+		mods = "CTRL",
+		action = wezterm.action.DisableDefaultAssignment,
+	},
+	{
+		key = "=",
+		mods = "CTRL",
+		action = wezterm.action.DisableDefaultAssignment,
+	},
+}
+
 -- Finally, return the configuration to wezterm:
 return config
