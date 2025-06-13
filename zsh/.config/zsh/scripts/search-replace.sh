@@ -36,11 +36,11 @@ Help:
 
     if [[ -n $REPLACE ]]; then
         # log command
-        echo "rg -e $SEARCH $PATH -l --glob "!$LOGFILE" $OPTS | xargs -r sed -Ei 's/$SEARCH/$REPLACE/g' >>$LOGFILE"
+        echo "rg -e $SEARCH $PATH -l --glob "!$LOGFILE" $OPTS | /usr/bin/xargs -r -n 1 /usr/bin/sed -Ei '' "s/$SEARCH/$REPLACE/g" >>$LOGFILE"
         rg -e "$SEARCH" >>"$LOGFILE"
 
         # ignore log file we just reated
-        rg -e "$SEARCH" "$PATH" -l --glob "!$LOGFILE" $OPTS | xargs -r sed -Ei "s/$SEARCH/$REPLACE/g"
+        rg -e "$SEARCH" "$PATH" -l --glob "!$LOGFILE" $OPTS | /usr/bin/xargs -r -n 1 /usr/bin/sed -Ei '' "s/$SEARCH/$REPLACE/g"
 
         # show results:
         rg -e "$REPLACE" "$PATH" -C1 $OPTS
