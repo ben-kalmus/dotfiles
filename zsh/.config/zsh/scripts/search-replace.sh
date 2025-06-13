@@ -1,4 +1,6 @@
 #1 /usr/bin/env bash
+alias date=/bin/date
+alias rg=/opt/homebrew/bin/rg
 
 function search-and-replace() {
     local SEARCH=$1
@@ -16,8 +18,7 @@ function search-and-replace() {
     fi
 
     local OPTS=$*
-    local CURRENT_DATE=$(date +%Y-%m-%d-%H:%M:%S)
-    local LOGFILE="replace-$CURRENT_DATE.log"
+    local LOGFILE="replace-$(/bin/date +%Y-%m-%d-%H:%M:%S).log"
 
     if [[ -z $SEARCH ]]; then
         echo "Usage: 
@@ -35,15 +36,15 @@ Help:
 
     if [[ -n $REPLACE ]]; then
         # log command
-        echo "rg -e $SEARCH $PATH -l --glob "!$LOGFILE" $OPTS | xargs -r sed -Ei 's/$SEARCH/$REPLACE/g'" >>"$LOGFILE"
+        echo "rg -e $SEARCH $PATH -l --glob "!$LOGFILE" $OPTS | xargs -r sed -Ei 's/$SEARCH/$REPLACE/g' >>$LOGFILE"
         rg -e "$SEARCH" >>"$LOGFILE"
 
         # ignore log file we just reated
-        rg -e "$SEARCH" "$PATH" -l --glob "!$LOGFILE" "$OPTS" | xargs -r sed -Ei "s/$SEARCH/$REPLACE/g"
+        rg -e "$SEARCH" "$PATH" -l --glob "!$LOGFILE" $OPTS | xargs -r sed -Ei "s/$SEARCH/$REPLACE/g"
 
         # show results:
-        rg -e "$REPLACE" "$PATH" -C1 "$OPTS"
+        rg -e "$REPLACE" "$PATH" -C1 $OPTS
     else
-        rg -e "$SEARCH" "$PATH" "$OPTS"
+        rg -e "$SEARCH" "$PATH" $OPTS
     fi
 }
