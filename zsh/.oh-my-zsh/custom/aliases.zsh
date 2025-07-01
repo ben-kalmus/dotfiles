@@ -34,6 +34,22 @@ function gitlog() {
     git log --oneline --decorate --pretty=format:"%C(yellow)%h%Creset %C(auto)%d %C(white)(%ad)%Creset %s" --date=format:'%Y-%m-%d %H:%M:%S'
 }
 
+function base-branch {
+    git symbolic-ref --short refs/remotes/origin/HEAD | sed 's|^origin/||'
+}
+alias current-branch="git branch --show-current"
+
+function rebase-branch {
+    CURRENT_BRANCH=$(git branch --show-current)
+    BASE_BRANCH=$1
+    if [[ $BASE_BRANCH = "" ]]
+    then
+        BASE_BRANCH=$(base-branch)
+    fi
+ 
+    git checkout $BASE_BRANCH && git pull && git checkout $CURRENT_BRANCH && git rebase -i $BASE_BRANCH
+}
+
 alias reloadzsh="source ~/.zshrc"
 alias v="nvim"
 
