@@ -8,3 +8,6 @@
 	insteadOf = https://github.com/
 [push]
 	autoSetupRemote = true
+[rebase]
+    updateRefs = true
+
