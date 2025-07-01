@@ -1,5 +1,5 @@
-# This is Git's per-user configuration file.
 [include]
+    # Place to put tokens and secrets!
     path = ~/.gitconfig.local
 [user]
 	name = Ben Kalmus
