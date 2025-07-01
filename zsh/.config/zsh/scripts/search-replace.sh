@@ -1,27 +1,27 @@
-#1 /usr/bin/env bash
+#! /usr/bin/env bash
 alias date=/bin/date
 alias rg=/opt/homebrew/bin/rg
 
 function search-and-replace() {
-    local SEARCH=$1
-    local REPLACE=$2
-    local PATH=${3:-"."}
+  local SEARCH=$1
+  local REPLACE=$2
+  local PATH=${3:-"."}
 
-    if [[ $# -gt 0 ]]; then shift; fi
-    if [[ $# -gt 0 ]]; then shift; fi
-    if [[ $# -gt 0 ]]; then shift; fi
+  if [[ $# -gt 0 ]]; then shift; fi
+  if [[ $# -gt 0 ]]; then shift; fi
+  if [[ $# -gt 0 ]]; then shift; fi
 
-    # if second arg is actually a path, then just do a search
-    if [[ -d "$REPLACE" ]]; then
-        PATH=$REPLACE
-        REPLACE=""
-    fi
+  # if second arg is actually a path, then just do a search
+  if [[ -d "$REPLACE" ]]; then
+    PATH=$REPLACE
+    REPLACE=""
+  fi
 
-    local OPTS=$*
-    local LOGFILE="replace-$(/bin/date +%Y-%m-%d-%H:%M:%S).log"
+  local OPTS=$*
+  local LOGFILE="replace-$(/bin/date +%Y-%m-%d-%H:%M:%S).log"
 
-    if [[ -z $SEARCH ]]; then
-        echo "Usage: 
+  if [[ -z $SEARCH ]]; then
+    echo "Usage: 
     $0 <search regex> <replace> <path> [ripgrep options]
 
 Help:
@@ -31,20 +31,20 @@ Help:
     Using 3 args performs a search, replace and path.
     Using 3+ args, performs search and replace with path and [options] passed through to ripgrep.
 "
-        return
-    fi
+    return
+  fi
 
-    if [[ -n $REPLACE ]]; then
-        # log command
-        echo "rg -e $SEARCH $PATH -l --glob "!$LOGFILE" $OPTS | /usr/bin/xargs -r -n 1 /usr/bin/sed -Ei '' "s/$SEARCH/$REPLACE/g" >>$LOGFILE"
-        rg -e "$SEARCH" >>"$LOGFILE"
+  if [[ -n $REPLACE ]]; then
+    # log command
+    echo "rg -e $SEARCH $PATH -l --glob "!$LOGFILE" $OPTS | /usr/bin/xargs -r -n 1 /usr/bin/sed -Ei '' "s/$SEARCH/$REPLACE/g" >>$LOGFILE"
+    rg -e "$SEARCH" >>"$LOGFILE"
 
-        # ignore log file we just reated
-        rg -e "$SEARCH" "$PATH" -l --glob "!$LOGFILE" $OPTS | /usr/bin/xargs -r -n 1 /usr/bin/sed -Ei '' "s/$SEARCH/$REPLACE/g"
+    # ignore log file we just reated
+    rg -e "$SEARCH" "$PATH" -l --glob "!$LOGFILE" $OPTS | /usr/bin/xargs -r -n 1 /usr/bin/sed -Ei '' "s/$SEARCH/$REPLACE/g"
 
-        # show results:
-        rg -e "$REPLACE" "$PATH" -C1 $OPTS
-    else
-        rg -e "$SEARCH" "$PATH" $OPTS
-    fi
+    # show results:
+    rg -e "$REPLACE" "$PATH" -C1 $OPTS
+  else
+    rg -e "$SEARCH" "$PATH" $OPTS
+  fi
 }
