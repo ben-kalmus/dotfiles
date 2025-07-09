@@ -12,7 +12,7 @@ config.initial_rows = 48
 config.font_size = 13
 config.font = wezterm.font("Fira Code")
 config.color_scheme = "Tokyo Night Moon"
-config.window_background_opacity = 0.95
+config.window_background_opacity = 0.93
 
 config.term = "xterm-256color"
 
