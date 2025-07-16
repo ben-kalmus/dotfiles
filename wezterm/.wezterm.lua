@@ -15,6 +15,7 @@ config.color_scheme = "Tokyo Night Moon"
 config.window_background_opacity = 0.93
 
 config.term = "xterm-256color"
+config.enable_kitty_graphics = false
 
 -- keybinds link https://wezterm.org/config/default-keys.html
 -- remove ctrl - and ctrl = which resize window
