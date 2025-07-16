@@ -17,6 +17,7 @@ alias gco='git checkout'
 alias gl='git log --oneline --graph'
 alias gr='git revert'
 alias grc='git rebase --continue'
+alias gra='git rebase --abort'
 alias grs="git restore --staged"
 alias gmrg='git mergetool'
 alias gs='git status && git --no-pager diff --stat'
