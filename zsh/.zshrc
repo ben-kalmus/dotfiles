@@ -6,6 +6,7 @@
 # (Stackoverflow solution)[https://stackoverflow.com/questions/76399463/why-are-my-tmux-plugins-not-working-on-macos-even-after-restarting-the-session]
 export PATH=$HOME/.local/bin:/usr/local/bin:$HOME/bin:$PATH
 export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
+export PATH=$PATH:$(go env GOPATH)/bin
 
 # Path to your Oh My Zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
