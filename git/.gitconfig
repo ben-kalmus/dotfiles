@@ -11,3 +11,5 @@
 [rebase]
     updateRefs = true
 
+[pull]
+	rebase = true
