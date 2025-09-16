@@ -6,30 +6,30 @@ local config = wezterm.config_builder()
 local act = wezterm.action
 
 -- Track last tab and last workspace
-local last_tab = nil
-local last_workspace = nil
+local function switch_workspace(window, pane, workspace)
+    local current_workspace = window:active_workspace()
+	if current_workspace == workspace then
+		return
+	end
 
-wezterm.on("update-right-status", function(window, _)
-	local tab = window:active_tab()
-	if tab then
-		last_tab = tab:tab_id()
-	end
-	local ws = window:active_workspace()
-	if ws then
-		last_workspace = ws
-	end
-end)
-
-local function switch_to_last_workspace(window)
-	if last_workspace then
-		window:perform_action(act.SwitchToWorkspace({ name = last_workspace }), window:active_pane())
-	end
+	window:perform_action(
+		act.SwitchToWorkspace({
+			name = workspace,
+		}),
+		pane
+	)
+	wezterm.GLOBAL.previous_workspace = current_workspace
 end
 
-local function switch_to_last_tab(window)
-	if last_tab then
-		window:perform_action(act.ActivateTab(last_tab), window:active_pane())
+local function toggle_last_workspace(window, pane)
+	local current_workspace = window:active_workspace()
+	local workspace = wezterm.GLOBAL.previous_workspace
+
+	if current_workspace == workspace or wezterm.GLOBAL.previous_workspace == nil then
+		return
 	end
+
+	switch_workspace(window, pane, workspace)
 end
 
 -- For example, changing the initial geometry for new windows:
@@ -72,11 +72,11 @@ config.keys = {
 	{ key = '"', mods = "LEADER|SHIFT", action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
 	{ key = "%", mods = "LEADER|SHIFT", action = act.SplitVertical({ domain = "CurrentPaneDomain" }) },
 	-- fuzzy search for tabs and workspaces
-	{ key = "p", mods = "LEADER", action = act.ShowLauncherArgs({ flags = "FUZZY|WORKSPACES" }) },
+	{ key = "Space", mods = "LEADER", action = act.ShowLauncherArgs({ flags = "FUZZY|WORKSPACES" }) },
 	-- Toggle last tab/window
-	{ key = "k", mods = "LEADER", action = wezterm.action_callback(switch_to_last_tab) },
+	{ key = "k", mods = "LEADER", action = wezterm.action.ActivateLastTab },
 	-- Toggle last workspace
-	{ key = "l", mods = "LEADER", action = wezterm.action_callback(switch_to_last_workspace) },
+	{ key = "l", mods = "LEADER", action = wezterm.action_callback(toggle_last_workspace) },
 	-- Create new named workspace
 	{
 		key = "s",
@@ -134,9 +134,6 @@ local my_copy_mode = {
 		action = act.CopyMode({ SetSelectionMode = "Block" }),
 	},
 	{ key = "Escape", mods = "NONE", action = act.CopyMode("Close") },
-	-- Page movement
-	{ key = "u", mods = "CTRL", action = act.CopyMode("PageUp") },
-	{ key = "d", mods = "CTRL", action = act.CopyMode("PageDown") },
 }
 
 local function merge_tables(base, extra)
