@@ -9,7 +9,7 @@ local act = wezterm.action
 local last_tab = nil
 local last_workspace = nil
 
-wezterm.on("update-right-status", function(window, pane)
+wezterm.on("update-right-status", function(window, _)
 	local tab = window:active_tab()
 	if tab then
 		last_tab = tab:tab_id()
@@ -110,43 +110,46 @@ config.keys = {
 }
 
 -- Keybindings inside Copy Mode
-local copy_mode = wezterm.gui.default_key_tables().copy_mode
-table.insert(copy_mode, {
+local default_copy_mode = wezterm.gui.default_key_tables().copy_mode
+local my_copy_mode = {
+	{ key = "w", mods = "NONE", action = act.CopyMode("MoveForwardWord") },
+	{ key = "b", mods = "NONE", action = act.CopyMode("MoveBackwardWord") },
 	{ key = "h", mods = "NONE", action = act.CopyMode("MoveLeft") },
 	{ key = "j", mods = "NONE", action = act.CopyMode("MoveDown") },
 	{ key = "k", mods = "NONE", action = act.CopyMode("MoveUp") },
 	{ key = "l", mods = "NONE", action = act.CopyMode("MoveRight") },
 	{
-		key = "v",
+		key = "V",
 		mods = "NONE",
 		action = act.CopyMode({ SetSelectionMode = "Cell" }),
 	},
 	{
-		key = "v",
+		key = "V",
 		mods = "SHIFT",
 		action = act.CopyMode({ SetSelectionMode = "Line" }),
 	},
 	{
-		key = "v",
+		key = "V",
 		mods = "CTRL",
 		action = act.CopyMode({ SetSelectionMode = "Block" }),
-	},
-	{
-		key = "y",
-		mods = "NONE",
-		action = act.Multiple({
-			{ CopyTo = "ClipboardAndPrimarySelection" },
-			{ CopyMode = "ScrollToBottom" },
-			{ CopyMode = "Close" },
-		}),
 	},
 	{ key = "Escape", mods = "NONE", action = act.CopyMode("Close") },
 	-- Page movement
 	{ key = "u", mods = "CTRL", action = act.CopyMode("PageUp") },
 	{ key = "d", mods = "CTRL", action = act.CopyMode("PageDown") },
-})
+}
 
-config.key_tables = { copy_mode = copy_mode }
+local function merge_tables(base, extra)
+	local result = {}
+	for _, v in ipairs(base) do
+		table.insert(result, v)
+	end
+	for _, v in ipairs(extra) do
+		table.insert(result, v)
+	end
+end
+
+config.key_tables = { copy_mode = merge_tables(default_copy_mode, my_copy_mode) }
 
 -- Finally, return the configuration to wezterm:
 return config
