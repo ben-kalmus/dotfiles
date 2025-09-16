@@ -12,4 +12,4 @@
     updateRefs = true
 
 [pull]
-	rebase = true
+    rebase = true
