@@ -5,6 +5,24 @@ local wezterm = require("wezterm")
 local config = wezterm.config_builder()
 local act = wezterm.action
 
+wezterm.on("update-right-status", function(window, pane)
+	local current = window:active_workspace()
+	local last_seen = wezterm.GLOBAL._last_seen_workspace
+
+	-- First run on a window: just seed last_seen
+	if last_seen == nil then
+		wezterm.GLOBAL._last_seen_workspace = current
+		return
+	end
+	-- If the workspace changed (via your helper, the launcher, palette, whatever):
+	if current ~= last_seen then
+		-- the one we were in becomes "previous"
+		wezterm.GLOBAL.previous_workspace = last_seen
+		-- and now we're here
+		wezterm.GLOBAL._last_seen_workspace = current
+	end
+end)
+
 -- Track last tab and last workspace
 local function switch_workspace(window, pane, workspace)
 	local current_workspace = window:active_workspace()
@@ -25,7 +43,8 @@ local function toggle_last_workspace(window, pane)
 	local current_workspace = window:active_workspace()
 	local workspace = wezterm.GLOBAL.previous_workspace
 
-	if current_workspace == workspace or wezterm.GLOBAL.previous_workspace == nil then
+	if wezterm.GLOBAL.previous_workspace == nil then
+		wezterm.GLOBAL.previous_workspace = current_workspace
 		return
 	end
 
@@ -78,7 +97,13 @@ config.keys = {
 	-- Toggle last tab/window
 	{ key = "k", mods = "LEADER", action = wezterm.action.ActivateLastTab },
 	-- Toggle last workspace
-	{ key = "l", mods = "LEADER", action = wezterm.action_callback(toggle_last_workspace) },
+	{
+		key = "l",
+		mods = "LEADER",
+		action = wezterm.action_callback(function(window, pane)
+			toggle_last_workspace(window, pane)
+		end),
+	},
 	-- Create new named workspace
 	{
 		key = "s",
