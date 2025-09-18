@@ -7,7 +7,7 @@ local act = wezterm.action
 
 -- Track last tab and last workspace
 local function switch_workspace(window, pane, workspace)
-    local current_workspace = window:active_workspace()
+	local current_workspace = window:active_workspace()
 	if current_workspace == workspace then
 		return
 	end
@@ -44,6 +44,8 @@ config.window_background_opacity = 0.93
 
 config.term = "xterm-256color"
 config.enable_kitty_graphics = false
+config.scrollback_lines = 100000
+config.enable_scroll_bar = true
 
 -- keybinds link https://wezterm.org/config/default-keys.html
 -- remove ctrl - and ctrl = which resize window
