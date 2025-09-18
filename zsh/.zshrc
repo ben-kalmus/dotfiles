@@ -126,13 +126,6 @@ ulimit -u 2048          # increase max user processes
 bindkey "^[[A" history-beginning-search-backward
 bindkey "^[[B" history-beginning-search-forward
 
-# =============================================
-# Wezterm mux server
-# =============================================
-if ! pgrep -x "wezterm-mux-server" >/dev/null; then
-  wezterm-mux-server &  # start in background automatically
-fi
-
 # Set personal aliases, overriding those provided by Oh My Zsh libs,
 # plugins, and themes. Aliases can be placed here, though Oh My Zsh
 # users are encouraged to define aliases within a top-level file in
