@@ -64,12 +64,12 @@ local keyBindings = {
 		description = "Redo",
 		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
 	},
-	{
-		source = { modifiers = { "cmd" }, key = "s" },
-		target = { modifiers = { "ctrl" }, key = "s" },
-		description = "Save",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
-	},
+	-- {
+	-- 	source = { modifiers = { "cmd" }, key = "s" },
+	-- 	target = { modifiers = { "ctrl" }, key = "s" },
+	-- 	description = "Save",
+	-- 	exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+	-- },
 	{
 		source = { modifiers = { "cmd" }, key = "f" },
 		target = { modifiers = { "ctrl" }, key = "f" },
@@ -83,15 +83,15 @@ local keyBindings = {
 		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
 	},
 	{
-		source = { modifiers = { "ctrl" }, key = "left" },
-		target = { modifiers = { "alt" }, key = "left" },
+		source = { modifiers = { "alt" }, key = "left" },
+		target = { modifiers = { "ctrl" }, key = "left" },
 		description = "Move cursor left by word",
 		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
 		preserveAdditionalModifiers = true,
 	},
 	{
-		source = { modifiers = { "ctrl" }, key = "right" },
-		target = { modifiers = { "alt" }, key = "right" },
+		source = { modifiers = { "alt" }, key = "right" },
+		target = { modifiers = { "ctrl" }, key = "right" },
 		description = "Move cursor right by word",
 		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
 		preserveAdditionalModifiers = true,
@@ -105,6 +105,8 @@ local keyBindings = {
 		debugHelper = true,
 	},
 }
+
+keyBindings = {}
 
 -- Helper function to apply default values to a binding
 local function applyDefaults(binding)
@@ -137,7 +139,7 @@ local function isAppInExceptions(exceptions)
 end
 
 -- Helper function to merge modifiers if preserveAdditionalModifiers is enabled
-local function getMergedModifiers(sourceModifiers, targetModifiers, currentFlags, preserveAdditional)
+local function getMergedModifiers(targetModifiers, sourceModifiers, currentFlags, preserveAdditional)
 	if not preserveAdditional then
 		return targetModifiers
 	end
@@ -198,35 +200,37 @@ for _, binding in ipairs(keyBindings) do
 
 	-- bind a hotkey on target mapping
 	hs.hotkey.bind(binding.target.modifiers, binding.target.key, function()
-		showDebugInfo(binding, "TRIGGERED", "Checking conditions...")
+		hs.timer.doAfter(0.01, function()
+			showDebugInfo(binding, "TRIGGERED", "Checking conditions...")
 
-		-- Skip if current app is in exceptions
-		if isAppInExceptions(binding.exceptions) then
-			-- Pass through the normal key combination
-			hs.eventtap.keyStroke(binding.target.modifiers, binding.target.key)
+			-- Skip if current app is in exceptions
+			if isAppInExceptions(binding.exceptions) then
+				-- Pass through the normal key combination
+				hs.eventtap.keyStroke(binding.target.modifiers, binding.target.key, 0.01)
+				showDebugInfo(
+					binding,
+					"PASSTHROUGH: App in exception " .. hs.application.frontmostApplication():bundleID(),
+					string.format("SENT %s+%s", table.concat(binding.target.modifiers, "+"), binding.target.key)
+				)
+				return
+			end
+
+			-- Determine target modifiers (with potential additional modifier preservation)
+			local modifiers = binding.source.modifiers
+			if binding.preserveAdditionalModifiers then
+				local currentFlags = hs.eventtap.checkKeyboardModifiers()
+				modifiers = getMergedModifiers(binding.target.modifiers, binding.source.modifiers, currentFlags, true)
+				showDebugInfo(binding, "MODIFIERS", "Preserved additional modifiers")
+			end
+
+			-- Send the original mac key combination
+			hs.eventtap.keyStroke(modifiers, binding.source.key)
 			showDebugInfo(
 				binding,
-				"App in exceptions list - passing through",
-				string.format("Sent %s+%s", table.concat(binding.target.modifiers, "+"), binding.target.key)
+				"EXECUTED",
+				string.format("Sent %s+%s", table.concat(modifiers, "+"), binding.source.key)
 			)
-			return
-		end
-
-		-- Determine target modifiers (with potential additional modifier preservation)
-		local modifiers = binding.source.modifiers
-		if binding.preserveAdditionalModifiers then
-			local currentFlags = hs.eventtap.checkKeyboardModifiers()
-			modifiers = getMergedModifiers(binding.target.modifiers, binding.source.modifiers, currentFlags, true)
-			showDebugInfo(binding, "MODIFIERS", "Preserved additional modifiers")
-		end
-
-		-- Send the original mac key combination
-		hs.eventtap.keyStroke(modifiers, binding.source.key)
-		showDebugInfo(
-			binding,
-			"EXECUTED",
-			string.format("Sent %s+%s", table.concat(modifiers, "+"), binding.source.key)
-		)
+		end)
 	end)
 
 	::continue::
@@ -247,3 +251,16 @@ end
 if debugEnabledCount > 0 then
 	print(string.format("Debug mode enabled for %d bindings", debugEnabledCount))
 end
+
+hs.hotkey.bind({ "ctrl" }, "s", function()
+	-- The modifiers to hold down
+	local modifiers = { "cmd" }
+	-- The key to press
+	local key = "s"
+
+	-- Send the complete keystroke
+	hs.eventtap.keyStroke(modifiers, key)
+
+	print("pressed " .. table.concat(modifiers, "+") .. "+" .. key)
+	hs.alert.show("pressed " .. table.concat(modifiers, "+") .. "+" .. key, 2)
+end)
