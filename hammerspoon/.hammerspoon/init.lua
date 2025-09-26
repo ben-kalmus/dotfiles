@@ -113,7 +113,7 @@ local keyBindings = {
 	{
 		source = { modifiers = { "cmd" }, key = "t" },
 		target = { modifiers = { "ctrl" }, key = "t" },
-        only = { "com.google.Chrome" , "org.mozilla.firefox" },
+		only = { "com.google.Chrome", "org.mozilla.firefox" },
 		description = "New Tab",
 		-- exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
 	},
@@ -218,22 +218,22 @@ end
 
 -- Debug helper function
 local function showDebugInfo(binding, action, additionalInfo)
-  if not binding.debugHelper then
-    return
-  end
+	if not binding.debugHelper then
+		return
+	end
 
-  local message = string.format(
-    "[%s] %s | %s",
-    action,
-    binding.description,
-    table.concat(binding.target.modifiers, "+") .. "+" .. binding.target.key
-  )
-  if additionalInfo then
-    message = message .. " | " .. additionalInfo
-  end
+	local message = string.format(
+		"[%s] %s | %s",
+		action,
+		binding.description,
+		table.concat(binding.target.modifiers, "+") .. "+" .. binding.target.key
+	)
+	if additionalInfo then
+		message = message .. " | " .. additionalInfo
+	end
 
-  print(message)
-  hs.alert.show(message, 2)
+	print(message)
+	hs.alert.show(message, 2)
 end
 
 print("All keycodes:")
@@ -244,80 +244,86 @@ local enabledBindings = 0
 local disabledBindings = 0
 
 local function pushKey(modifiers, key, delay)
-  delay = delay or 0.01
-  hs.timer.doAfter(delay, function()
-    hs.eventtap.keyStroke(modifiers, key, 0)
-  end)
+	delay = delay or 0.01
+	hs.timer.doAfter(delay, function()
+		hs.eventtap.keyStroke(modifiers, key, 0)
+	end)
 end
 
 showAppInfo = false
 
 for _, binding in ipairs(keyBindings) do
-    -- Apply default values
-    binding = applyDefaults(binding)
-    -- Skip if binding is disabled
-    if not binding.enabled then
-        disabledBindings = disabledBindings + 1
-        showDebugInfo(binding, "SKIPPED")
-        goto continue
-    end
+	-- Apply default values
+	binding = applyDefaults(binding)
+	-- Skip if binding is disabled
 
-    enabledBindings = enabledBindings + 1
+	enabledBindings = enabledBindings + 1
 
-    local hk
-    hk = hs.hotkey.bind(binding.target.modifiers, binding.target.key, nil, function()
-        showDebugInfo(binding, "TRIGGERED")
+	if not binding.enabled then
+		disabledBindings = disabledBindings + 1
+		showDebugInfo(binding, "SKIPPED")
+	else
+		-- TODO: cleanup
+		local hk
+		hk = hs.hotkey.bind(binding.target.modifiers, binding.target.key, nil, function()
+			showDebugInfo(binding, "TRIGGERED")
 
-        if not binding.source or not binding.source.key then
-            showDebugInfo(binding, "SINK", "Key remapped to nothing")
-            return
-        end
+			if not binding.source or not binding.source.key then
+				showDebugInfo(binding, "SINK", "Key remapped to nothing")
+				return
+			end
 
-        if showAppInfo == true then 
-              print( hs.application.frontmostApplication():bundleID())
-        end
+			if showAppInfo == true then
+				print(hs.application.frontmostApplication():bundleID())
+			end
 
-        if binding.only and #binding.only > 0 then
-            if not hs.fnutils.contains(binding.only, hs.application.frontmostApplication():bundleID()) then
-                showDebugInfo(binding, "SKIPPED: app not included", hs.application.frontmostApplication():bundleID())
-                return
-            end
-        end
+			if binding.only and #binding.only > 0 then
+				if not hs.fnutils.contains(binding.only, hs.application.frontmostApplication():bundleID()) then
+					showDebugInfo(
+						binding,
+						"SKIPPED: app not included",
+						hs.application.frontmostApplication():bundleID()
+					)
+					return
+				end
+			end
 
-          -- Skip if current app is in exceptions
-          if isAppInExceptions(binding.exceptions) then
-              -- Pass through the normal key combination
-              pushKey(binding.target.modifiers, binding.target.key, 0)
-              hk:disable()    -- prevent recursion
-              hs.timer.doAfter(0.01, function()
-                  hk:enable()
-              end)
+			-- Skip if current app is in exceptions
+			if isAppInExceptions(binding.exceptions) then
+				-- Pass through the normal key combination
+				pushKey(binding.target.modifiers, binding.target.key, 0)
+				hk:disable() -- prevent recursion
+				hs.timer.doAfter(0.01, function()
+					hk:enable()
+				end)
 
-              showDebugInfo(binding, "PASSTHROUGH: App in exception " .. hs.application.frontmostApplication():bundleID())
-              return
-          end
+				showDebugInfo(
+					binding,
+					"PASSTHROUGH: App in exception " .. hs.application.frontmostApplication():bundleID()
+				)
+				return
+			end
 
-          -- Determine target modifiers (with potential additional modifier preservation)
-          local modifiers = binding.source.modifiers
-          if binding.preserveAdditionalModifiers then
-              local currentFlags = hs.eventtap.checkKeyboardModifiers()
-              modifiers = getMergedModifiers(binding.target.modifiers, binding.source.modifiers, currentFlags, true)
-              showDebugInfo(binding, "MODIFIERS", "Preserved additional modifiers")
-          end
+			-- Determine target modifiers (with potential additional modifier preservation)
+			local modifiers = binding.source.modifiers
+			if binding.preserveAdditionalModifiers then
+				local currentFlags = hs.eventtap.checkKeyboardModifiers()
+				modifiers = getMergedModifiers(binding.target.modifiers, binding.source.modifiers, currentFlags, true)
+				showDebugInfo(binding, "MODIFIERS", "Preserved additional modifiers")
+			end
 
-          -- Send the original mac key combination
-          pushKey(modifiers, binding.source.key)
-          showDebugInfo(binding, "EXECUTED")
-          -- hk:disable()
+			-- Send the original mac key combination
+			pushKey(modifiers, binding.source.key)
+			showDebugInfo(binding, "EXECUTED")
+			-- hk:disable()
 
-          -- If passthrough is enabled, also send the target key combination
-          if binding.passthrough then
-              pushKey(binding.target.modifiers, binding.target.key)
-              showDebugInfo(binding, "PASSTHROUGH: Sent target key as well")
-          end
-      end, nil)
-
-    ::continue::
+			-- If passthrough is enabled, also send the target key combination
+			if binding.passthrough then
+				pushKey(binding.target.modifiers, binding.target.key)
+				showDebugInfo(binding, "PASSTHROUGH: Sent target key as well")
+			end
+		end, nil)
+	end
 end
 -- Configuration summary
 print(string.format("Enhanced key bindings loaded: %d enabled, %d disabled", enabledBindings, disabledBindings))
