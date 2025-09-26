@@ -17,7 +17,7 @@ local function reloadConfig(files)
 	end
 
 	if doReload then
-		configFileWatcher = hs.timer.doAfter(0.5, function()
+		hs.timer.doAfter(0.5, function()
 			hs.reload()
 		end)
 	end
@@ -36,24 +36,24 @@ local defaultValues = {
 	enabled = true,
 	debugHelper = false,
 	exceptions = {}, -- list of app bundle IDs to exclude from remapping
+	passthrough = false, -- sends the activated keypress as well
 }
 
 -- Key binding definitions
 local keyBindings = {
-	-- source: key to send to Mac OS
+	-- source: key to send to Mac OS. If empty, no events are fired. This is useful to disable a key.
 	-- target: key to activate on
 	-- description: for debug purposes
 	-- exceptions: App to exclude from remapping (by bundle ID), to see bundle ID use: hs.application.frontmostApplication():bundleID()
 	-- enabled: keybind ative
+	-- passthrough: sends the activated keypress as well
 	{
-		enabled = true,
 		source = { modifiers = { "cmd" }, key = "c" },
 		target = { modifiers = { "ctrl" }, key = "c" },
 		description = "Copy",
 		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
 	},
 	{
-		enabled = true,
 		source = { modifiers = { "cmd" }, key = "v" },
 		target = { modifiers = { "ctrl" }, key = "v" },
 		description = "Paste",
@@ -85,12 +85,24 @@ local keyBindings = {
 		description = "Redo",
 		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
 	},
-	-- {
-	-- 	source = { modifiers = { "cmd" }, key = "s" },
-	-- 	target = { modifiers = { "ctrl" }, key = "s" },
-	-- 	description = "Save",
-	-- 	exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
-	-- },
+	{
+		source = { modifiers = { "cmd" }, key = "r" },
+		target = { modifiers = { "ctrl" }, key = "r" },
+		description = "Refresh / Reload",
+		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+	},
+	{
+		source = { modifiers = { "cmd" }, key = "p" },
+		target = { modifiers = { "ctrl" }, key = "p" },
+		description = "Command Pallette / Print",
+		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+	},
+	{
+		source = { modifiers = { "cmd", "shift" }, key = "p" },
+		target = { modifiers = { "ctrl", "shift" }, key = "p" },
+		description = "Command Pallette / Print",
+		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+	},
 	{
 		source = { modifiers = { "cmd" }, key = "f" },
 		target = { modifiers = { "ctrl" }, key = "f" },
@@ -98,27 +110,26 @@ local keyBindings = {
 		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
 	},
 	{
-		source = { modifiers = { "cmd" }, key = "p" },
-		target = { modifiers = { "ctrl" }, key = "p" },
-		description = "Print",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		source = { modifiers = {}, key = "escape" },
+		target = { modifiers = {}, key = "capslock" },
+		description = "Capslock to ESC",
 	},
-	{
-		source = { modifiers = { "fn", "alt" }, key = "left" },
-		target = { modifiers = { "ctrl" }, key = "left" },
-		description = "Move cursor left by word",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
-		debugHelper = true,
-		-- preserveAdditionalModifiers = true,
-	},
-	{
-		debugHelper = true,
-		source = { modifiers = { "fn", "alt" }, key = "right" },
-		target = { modifiers = { "ctrl" }, key = "right" },
-		description = "Move cursor right by word",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
-		-- preserveAdditionalModifiers = true,
-	},
+	-- {
+	-- 	source = { modifiers = { "fn", "alt" }, key = "left" },
+	-- 	target = { modifiers = { "fn", "ctrl" }, key = "left" },
+	-- 	description = "Move cursor left by word",
+	-- 	exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+	-- 	debugHelper = true,
+	-- 	-- preserveAdditionalModifiers = true,
+	-- },
+	-- {
+	-- 	debugHelper = true,
+	-- 	source = { modifiers = { "fn", "alt" }, key = "right" },
+	-- 	target = { modifiers = { "fn", "ctrl" }, key = "right" },
+	-- 	description = "Move cursor right by word",
+	-- 	exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+	-- 	-- preserveAdditionalModifiers = true,
+	-- },
 	{
 		source = { modifiers = { "cmd" }, key = "w" },
 		target = { modifiers = { "ctrl" }, key = "w" },
@@ -126,6 +137,16 @@ local keyBindings = {
 		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
 		enabled = false, -- Disabled by default as it might conflict with macOS window closing
 		debugHelper = true,
+	},
+	{
+		target = { modifiers = { "cmd" }, key = "h" },
+		debugHelper = true,
+		description = "Disable CMD Hide",
+	},
+	{
+		target = { modifiers = { "alt", "cmd" }, key = "h" },
+		debugHelper = true,
+		description = "Disable CMD+OPT Hide",
 	},
 }
 
@@ -217,7 +238,7 @@ local disabledBindings = 0
 local function pushKey(modifiers, key, delay)
 	delay = delay or 0.01
 	hs.timer.doAfter(delay, function()
-		hs.eventtap.keyStroke(modifiers, key, delay)
+		hs.eventtap.keyStroke(modifiers, key, 0)
 	end)
 end
 
@@ -234,14 +255,23 @@ for _, binding in ipairs(keyBindings) do
 
 	enabledBindings = enabledBindings + 1
 
-	-- bind a hotkey on target mapping
-	hs.hotkey.bind(binding.target.modifiers, binding.target.key, nil, function()
-		showDebugInfo(binding, "TRIGGERED", "Checking conditions...")
+	local hk
+    hk = hs.hotkey.bind(binding.target.modifiers, binding.target.key, nil, function()
+		showDebugInfo(binding, "TRIGGERED")
+
+		if not binding.source or not binding.source.key then
+			showDebugInfo(binding, "SINK", "Key remapped to nothing")
+			return
+		end
 
 		-- Skip if current app is in exceptions
 		if isAppInExceptions(binding.exceptions) then
 			-- Pass through the normal key combination
-			pushKey(binding.target.modifiers, binding.target.key, 0.001)
+			pushKey(binding.target.modifiers, binding.target.key, 0)
+            hk:disable()    -- prevent recursion
+            hs.timer.doAfter(0.01, function()
+                hk:enable()
+            end)
 
 			showDebugInfo(binding, "PASSTHROUGH: App in exception " .. hs.application.frontmostApplication():bundleID())
 			return
@@ -256,9 +286,15 @@ for _, binding in ipairs(keyBindings) do
 		end
 
 		-- Send the original mac key combination
-		pushKey(modifiers, binding.source.key, 0.001)
-
+		pushKey(modifiers, binding.source.key)
 		showDebugInfo(binding, "EXECUTED")
+        -- hk:disable()
+
+		-- If passthrough is enabled, also send the target key combination
+		if binding.passthrough then
+			pushKey(binding.target.modifiers, binding.target.key)
+			showDebugInfo(binding, "PASSTHROUGH: Sent target key as well")
+		end
 	end, nil)
 
 	::continue::
