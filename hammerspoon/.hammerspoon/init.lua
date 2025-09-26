@@ -15,8 +15,11 @@ local function reloadConfig(files)
 			doReload = true
 		end
 	end
+
 	if doReload then
-		hs.reload()
+		configFileWatcher = hs.timer.doAfter(0.5, function()
+			hs.reload()
+		end)
 	end
 end
 hs.pathwatcher.new(os.getenv("HOME") .. "/.hammerspoon/", reloadConfig):start()
@@ -37,6 +40,11 @@ local defaultValues = {
 
 -- Key binding definitions
 local keyBindings = {
+	-- source: key to send to Mac OS
+	-- target: key to activate on
+	-- description: for debug purposes
+	-- exceptions: App to exclude from remapping (by bundle ID), to see bundle ID use: hs.application.frontmostApplication():bundleID()
+	-- enabled: keybind ative
 	{
 		enabled = true,
 		source = { modifiers = { "cmd" }, key = "c" },
@@ -58,6 +66,8 @@ local keyBindings = {
 		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
 	},
 	{
+		-- collides with ctrl-a which moves cursor to start
+		enabled = false,
 		source = { modifiers = { "cmd" }, key = "a" },
 		target = { modifiers = { "ctrl" }, key = "a" },
 		description = "Select All",
@@ -94,18 +104,20 @@ local keyBindings = {
 		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
 	},
 	{
-		source = { modifiers = { "alt" }, key = "left" },
+		source = { modifiers = { "fn", "alt" }, key = "left" },
 		target = { modifiers = { "ctrl" }, key = "left" },
 		description = "Move cursor left by word",
 		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
-		preserveAdditionalModifiers = true,
+		debugHelper = true,
+		-- preserveAdditionalModifiers = true,
 	},
 	{
-		source = { modifiers = { "alt" }, key = "right" },
+		debugHelper = true,
+		source = { modifiers = { "fn", "alt" }, key = "right" },
 		target = { modifiers = { "ctrl" }, key = "right" },
 		description = "Move cursor right by word",
 		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
-		preserveAdditionalModifiers = true,
+		-- preserveAdditionalModifiers = true,
 	},
 	{
 		source = { modifiers = { "cmd" }, key = "w" },
@@ -181,7 +193,12 @@ local function showDebugInfo(binding, action, additionalInfo)
 		return
 	end
 
-	local message = string.format("[%s] %s", action, binding.description)
+	local message = string.format(
+		"[%s] %s | %s",
+		action,
+		binding.description,
+		table.concat(binding.target.modifiers, "+") .. "+" .. binding.target.key
+	)
 	if additionalInfo then
 		message = message .. " | " .. additionalInfo
 	end
@@ -211,7 +228,7 @@ for _, binding in ipairs(keyBindings) do
 	-- Skip if binding is disabled
 	if not binding.enabled then
 		disabledBindings = disabledBindings + 1
-		showDebugInfo(binding, "SKIPPED", "Binding is disabled")
+		showDebugInfo(binding, "SKIPPED")
 		goto continue
 	end
 
@@ -224,13 +241,9 @@ for _, binding in ipairs(keyBindings) do
 		-- Skip if current app is in exceptions
 		if isAppInExceptions(binding.exceptions) then
 			-- Pass through the normal key combination
-			pushKey(binding.target.modifiers, binding.target.key, 0.01)
+			pushKey(binding.target.modifiers, binding.target.key, 0.001)
 
-			showDebugInfo(
-				binding,
-				"PASSTHROUGH: App in exception " .. hs.application.frontmostApplication():bundleID(),
-				string.format("SENT %s+%s", table.concat(binding.target.modifiers, "+"), binding.target.key)
-			)
+			showDebugInfo(binding, "PASSTHROUGH: App in exception " .. hs.application.frontmostApplication():bundleID())
 			return
 		end
 
@@ -243,13 +256,9 @@ for _, binding in ipairs(keyBindings) do
 		end
 
 		-- Send the original mac key combination
-		pushKey(modifiers, binding.source.key)
+		pushKey(modifiers, binding.source.key, 0.001)
 
-		showDebugInfo(
-			binding,
-			"EXECUTED",
-			string.format("Sent %s+%s", table.concat(modifiers, "+"), binding.source.key)
-		)
+		showDebugInfo(binding, "EXECUTED")
 	end, nil)
 
 	::continue::
@@ -270,19 +279,7 @@ if debugEnabledCount > 0 then
 	print(string.format("Debug mode enabled for %d bindings", debugEnabledCount))
 end
 
--- hs.hotkey.bind({ "ctrl" }, "c", nil, function()
--- 	local modifiers = { "cmd" }
--- 	local key = "c"
---
--- 	hs.timer.doAfter(0.01, function()
--- 		hs.eventtap.keyStroke({ "cmd" }, "c", 0.01)
--- 	end)
---
--- 	print("pressed " .. table.concat(modifiers, "+") .. "+" .. key)
--- 	hs.alert.show("pressed " .. "ctrl" .. "+" .. key, 2)
--- 	hs.alert.show("sent " .. table.concat(modifiers, "+") .. "+" .. key, 2)
--- end)
-
+-- hs.hotkey.
 local function debugKeys()
 	hs.eventtap
 		.new({ hs.eventtap.event.types.keyDown, hs.eventtap.event.types.systemDefined }, function(event)
