@@ -1,3 +1,12 @@
+package.path = table.concat({
+	package.path,
+	hs.configdir .. "/vendor/?.lua",
+	hs.configdir .. "/vendor/?/init.lua",
+	hs.configdir .. "/vendor/?/?.lua", -- lets require("inspect") find vendor/inspect/inspect.lua
+}, ";")
+
+local inspect = require("inspect")
+
 -- Reload config when files change
 local function reloadConfig(files)
 	doReload = false
@@ -22,19 +31,21 @@ hs.alert.show("Hammerspoon config loaded")
 local defaultValues = {
 	preserveAdditionalModifiers = false, -- allows you to hold other modifiers (like Shift) while remapping
 	enabled = true,
-	debugHelper = true,
+	debugHelper = false,
 	exceptions = {}, -- list of app bundle IDs to exclude from remapping
 }
 
 -- Key binding definitions
 local keyBindings = {
 	{
+		enabled = true,
 		source = { modifiers = { "cmd" }, key = "c" },
 		target = { modifiers = { "ctrl" }, key = "c" },
 		description = "Copy",
 		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
 	},
 	{
+		enabled = true,
 		source = { modifiers = { "cmd" }, key = "v" },
 		target = { modifiers = { "ctrl" }, key = "v" },
 		description = "Paste",
@@ -105,8 +116,6 @@ local keyBindings = {
 		debugHelper = true,
 	},
 }
-
-keyBindings = {}
 
 -- Helper function to apply default values to a binding
 local function applyDefaults(binding)
@@ -181,9 +190,19 @@ local function showDebugInfo(binding, action, additionalInfo)
 	hs.alert.show(message, 2)
 end
 
+print("All keycodes:")
+print(inspect(hs.keycodes.map))
+
 -- Apply all key bindings
 local enabledBindings = 0
 local disabledBindings = 0
+
+local function pushKey(modifiers, key, delay)
+	delay = delay or 0.01
+	hs.timer.doAfter(delay, function()
+		hs.eventtap.keyStroke(modifiers, key, delay)
+	end)
+end
 
 for _, binding in ipairs(keyBindings) do
 	-- Apply default values
@@ -199,43 +218,42 @@ for _, binding in ipairs(keyBindings) do
 	enabledBindings = enabledBindings + 1
 
 	-- bind a hotkey on target mapping
-	hs.hotkey.bind(binding.target.modifiers, binding.target.key, function()
-		hs.timer.doAfter(0.01, function()
-			showDebugInfo(binding, "TRIGGERED", "Checking conditions...")
+	hs.hotkey.bind(binding.target.modifiers, binding.target.key, nil, function()
+		showDebugInfo(binding, "TRIGGERED", "Checking conditions...")
 
-			-- Skip if current app is in exceptions
-			if isAppInExceptions(binding.exceptions) then
-				-- Pass through the normal key combination
-				hs.eventtap.keyStroke(binding.target.modifiers, binding.target.key, 0.01)
-				showDebugInfo(
-					binding,
-					"PASSTHROUGH: App in exception " .. hs.application.frontmostApplication():bundleID(),
-					string.format("SENT %s+%s", table.concat(binding.target.modifiers, "+"), binding.target.key)
-				)
-				return
-			end
+		-- Skip if current app is in exceptions
+		if isAppInExceptions(binding.exceptions) then
+			-- Pass through the normal key combination
+			pushKey(binding.target.modifiers, binding.target.key, 0.01)
 
-			-- Determine target modifiers (with potential additional modifier preservation)
-			local modifiers = binding.source.modifiers
-			if binding.preserveAdditionalModifiers then
-				local currentFlags = hs.eventtap.checkKeyboardModifiers()
-				modifiers = getMergedModifiers(binding.target.modifiers, binding.source.modifiers, currentFlags, true)
-				showDebugInfo(binding, "MODIFIERS", "Preserved additional modifiers")
-			end
-
-			-- Send the original mac key combination
-			hs.eventtap.keyStroke(modifiers, binding.source.key)
 			showDebugInfo(
 				binding,
-				"EXECUTED",
-				string.format("Sent %s+%s", table.concat(modifiers, "+"), binding.source.key)
+				"PASSTHROUGH: App in exception " .. hs.application.frontmostApplication():bundleID(),
+				string.format("SENT %s+%s", table.concat(binding.target.modifiers, "+"), binding.target.key)
 			)
-		end)
-	end)
+			return
+		end
+
+		-- Determine target modifiers (with potential additional modifier preservation)
+		local modifiers = binding.source.modifiers
+		if binding.preserveAdditionalModifiers then
+			local currentFlags = hs.eventtap.checkKeyboardModifiers()
+			modifiers = getMergedModifiers(binding.target.modifiers, binding.source.modifiers, currentFlags, true)
+			showDebugInfo(binding, "MODIFIERS", "Preserved additional modifiers")
+		end
+
+		-- Send the original mac key combination
+		pushKey(modifiers, binding.source.key)
+
+		showDebugInfo(
+			binding,
+			"EXECUTED",
+			string.format("Sent %s+%s", table.concat(modifiers, "+"), binding.source.key)
+		)
+	end, nil)
 
 	::continue::
 end
-
 -- Configuration summary
 print(string.format("Enhanced key bindings loaded: %d enabled, %d disabled", enabledBindings, disabledBindings))
 
@@ -252,15 +270,34 @@ if debugEnabledCount > 0 then
 	print(string.format("Debug mode enabled for %d bindings", debugEnabledCount))
 end
 
-hs.hotkey.bind({ "ctrl" }, "s", function()
-	-- The modifiers to hold down
-	local modifiers = { "cmd" }
-	-- The key to press
-	local key = "s"
+-- hs.hotkey.bind({ "ctrl" }, "c", nil, function()
+-- 	local modifiers = { "cmd" }
+-- 	local key = "c"
+--
+-- 	hs.timer.doAfter(0.01, function()
+-- 		hs.eventtap.keyStroke({ "cmd" }, "c", 0.01)
+-- 	end)
+--
+-- 	print("pressed " .. table.concat(modifiers, "+") .. "+" .. key)
+-- 	hs.alert.show("pressed " .. "ctrl" .. "+" .. key, 2)
+-- 	hs.alert.show("sent " .. table.concat(modifiers, "+") .. "+" .. key, 2)
+-- end)
 
-	-- Send the complete keystroke
-	hs.eventtap.keyStroke(modifiers, key)
-
-	print("pressed " .. table.concat(modifiers, "+") .. "+" .. key)
-	hs.alert.show("pressed " .. table.concat(modifiers, "+") .. "+" .. key, 2)
-end)
+local function debugKeys()
+	hs.eventtap
+		.new({ hs.eventtap.event.types.keyDown, hs.eventtap.event.types.systemDefined }, function(event)
+			local type = event:getType()
+			local flags = event:getFlags()
+			if type == hs.eventtap.event.types.keyDown then
+				print(inspect(flags) .. "\n" .. hs.keycodes.map[event:getKeyCode()])
+			elseif type == hs.eventtap.event.types.systemDefined then
+				local t = event:systemKey()
+				if t.down then
+					print("System key: " .. table.concat(flags, "+"))
+				end
+			end
+			return true
+		end)
+		:start()
+end
+-- debugKeys()

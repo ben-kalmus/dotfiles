@@ -1,0 +1,3 @@
+[submodule "hammerspoon/.hammerspoon/vendor/inspect"]
+	path = hammerspoon/.hammerspoon/vendor/inspect
+	url = https://github.com/kikito/inspect.lua
