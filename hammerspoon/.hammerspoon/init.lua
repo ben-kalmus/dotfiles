@@ -9,7 +9,7 @@ local inspect = require("inspect")
 
 -- Reload config when files change
 local function reloadConfig(files)
-	doReload = false
+	local doReload = false
 	for _, file in pairs(files) do
 		if file:sub(-4) == ".lua" then
 			doReload = true
@@ -46,6 +46,12 @@ local defaultValues = {
 	debugHelper = false,
 	exceptions = {}, -- list of app bundle IDs to exclude from remapping
 	passthrough = false, -- sends the activated keypress as well
+}
+
+local terminalExceptions = {
+	"com.apple.Terminal",
+	"com.googlecode.iterm2",
+	"com.github.wez.wezterm",
 }
 
 -- Key binding definitions
@@ -113,6 +119,20 @@ local keyBindings = {
 		target = { modifiers = { "ctrl" }, key = "f" },
 		description = "Find",
 		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+	},
+	{
+		source = { modifiers = { "cmd" }, key = "left" },
+		target = { key = "home" },
+		description = "HOME key",
+		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		allowModifiers = true,
+	},
+	{
+		source = { modifiers = { "cmd" }, key = "right" },
+		target = { key = "end" },
+		description = "END key",
+		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		allowModifiers = true,
 	},
 	{
 		source = { modifiers = { "cmd" }, key = "t" },
@@ -247,7 +267,7 @@ local function pushKey(modifiers, key, delay)
 	end)
 end
 
-showAppInfo = false
+local showAppInfo = false
 
 -- Configuration summary
 print(string.format("Enhanced key bindings loaded: %d enabled, %d disabled", enabledBindings, disabledBindings))
@@ -386,7 +406,6 @@ for _, binding in ipairs(keyBindings) do
 		disabledBindings = disabledBindings + 1
 		showDebugInfo(binding, "SKIPPED")
 	else
-		-- setupEvent(binding)
 		newBinding(binding)
 	end
 end
