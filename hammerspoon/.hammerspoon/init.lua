@@ -27,12 +27,21 @@ hs.pathwatcher.new(os.getenv("HOME") .. "/.hammerspoon/", reloadConfig):start()
 hs.alert.show("Hammerspoon config loaded")
 
 -- ================================================================================================
+-- Spoons
+-- ================================================================================================
+
+-- Caffeine, screen lock:
+hs.loadSpoon("Caffeine")
+spoon.Caffeine:start()
+spoon.Caffeine:setState(true)
+
+-- ================================================================================================
 -- Mac to Linux key binding configuration
 -- ================================================================================================
 
 -- Default values for optional fields
 local defaultValues = {
-	preserveAdditionalModifiers = false, -- allows you to hold other modifiers (like Shift) while remapping
+	allowModifiers = false, -- allows you to hold other modifiers (like Shift) while remapping
 	enabled = true,
 	debugHelper = false,
 	exceptions = {}, -- list of app bundle IDs to exclude from remapping
@@ -122,22 +131,22 @@ local keyBindings = {
 		target = { modifiers = {}, key = "capslock" },
 		description = "Capslock to ESC",
 	},
-	-- {
-	-- 	source = { modifiers = { "fn", "alt" }, key = "left" },
-	-- 	target = { modifiers = { "fn", "ctrl" }, key = "left" },
-	-- 	description = "Move cursor left by word",
-	-- 	exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
-	-- 	debugHelper = true,
-	-- 	-- preserveAdditionalModifiers = true,
-	-- },
-	-- {
-	-- 	debugHelper = true,
-	-- 	source = { modifiers = { "fn", "alt" }, key = "right" },
-	-- 	target = { modifiers = { "fn", "ctrl" }, key = "right" },
-	-- 	description = "Move cursor right by word",
-	-- 	exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
-	-- 	-- preserveAdditionalModifiers = true,
-	-- },
+	{
+		source = { modifiers = { "fn", "alt" }, key = "left" },
+		target = { modifiers = { "fn", "ctrl" }, key = "left" },
+		description = "Move cursor left by word",
+		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		allowModifiers = true,
+		debugHelper = true,
+	},
+	{
+		source = { modifiers = { "fn", "alt" }, key = "right" },
+		target = { modifiers = { "fn", "ctrl" }, key = "right" },
+		description = "Move cursor right by word",
+		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		allowModifiers = true,
+		debugHelper = true,
+	},
 	{
 		source = { modifiers = { "cmd" }, key = "w" },
 		target = { modifiers = { "ctrl" }, key = "w" },
@@ -188,27 +197,23 @@ local function isAppInExceptions(exceptions)
 	return false
 end
 
--- Helper function to merge modifiers if preserveAdditionalModifiers is enabled
-local function getMergedModifiers(targetModifiers, sourceModifiers, currentFlags, preserveAdditional)
-	if not preserveAdditional then
+-- Helper function to merge modifiers if allowModifiers is enabled
+local function getMergedModifiers(targetModifiers, sourceModifiers, currentFlags, allowExtra)
+	if not allowExtra then
 		return targetModifiers
 	end
 
-	-- Start with target modifiers
 	local mergedModifiers = {}
-	for _, mod in ipairs(targetModifiers) do
+	-- Start with modifiers we are supposed to append
+	for _, mod in ipairs(sourceModifiers) do
 		table.insert(mergedModifiers, mod)
 	end
 
 	-- Add additional modifiers that weren't in source but are currently pressed
 	local additionalMods = { "shift", "alt", "cmd", "ctrl", "fn" }
 	for _, mod in ipairs(additionalMods) do
-		-- If this modifier is currently pressed but not in source or target, add it
-		if
-			currentFlags[mod]
-			and not hs.fnutils.contains(sourceModifiers, mod)
-			and not hs.fnutils.contains(targetModifiers, mod)
-		then
+		-- If this modifier is currently pressed but not in target, add it
+		if currentFlags[mod] and not hs.fnutils.contains(targetModifiers, mod) then
 			table.insert(mergedModifiers, mod)
 		end
 	end
@@ -252,78 +257,59 @@ end
 
 showAppInfo = false
 
-for _, binding in ipairs(keyBindings) do
-	-- Apply default values
-	binding = applyDefaults(binding)
-	-- Skip if binding is disabled
+local function setupEvent(binding)
+	local hk
+	hk = hs.hotkey.bind(binding.target.modifiers, binding.target.key, nil, function()
+		showDebugInfo(binding, "TRIGGERED")
 
-	enabledBindings = enabledBindings + 1
+		if not binding.source or not binding.source.key then
+			showDebugInfo(binding, "SINK", "Key remapped to nothing")
+			return
+		end
 
-	if not binding.enabled then
-		disabledBindings = disabledBindings + 1
-		showDebugInfo(binding, "SKIPPED")
-	else
-		-- TODO: cleanup
-		local hk
-		hk = hs.hotkey.bind(binding.target.modifiers, binding.target.key, nil, function()
-			showDebugInfo(binding, "TRIGGERED")
+		if showAppInfo == true then
+			print(hs.application.frontmostApplication():bundleID())
+		end
 
-			if not binding.source or not binding.source.key then
-				showDebugInfo(binding, "SINK", "Key remapped to nothing")
+		if binding.only and #binding.only > 0 then
+			if not hs.fnutils.contains(binding.only, hs.application.frontmostApplication():bundleID()) then
+				showDebugInfo(binding, "SKIPPED: app not included", hs.application.frontmostApplication():bundleID())
 				return
 			end
+		end
 
-			if showAppInfo == true then
-				print(hs.application.frontmostApplication():bundleID())
-			end
+		-- Skip if current app is in exceptions
+		if isAppInExceptions(binding.exceptions) then
+			-- Pass through the normal key combination
+			pushKey(binding.target.modifiers, binding.target.key, 0)
+			hk:disable() -- prevent recursion
+			hs.timer.doAfter(0.01, function()
+				hk:enable()
+			end)
 
-			if binding.only and #binding.only > 0 then
-				if not hs.fnutils.contains(binding.only, hs.application.frontmostApplication():bundleID()) then
-					showDebugInfo(
-						binding,
-						"SKIPPED: app not included",
-						hs.application.frontmostApplication():bundleID()
-					)
-					return
-				end
-			end
+			showDebugInfo(binding, "PASSTHROUGH: App in exception " .. hs.application.frontmostApplication():bundleID())
+			return
+		end
 
-			-- Skip if current app is in exceptions
-			if isAppInExceptions(binding.exceptions) then
-				-- Pass through the normal key combination
-				pushKey(binding.target.modifiers, binding.target.key, 0)
-				hk:disable() -- prevent recursion
-				hs.timer.doAfter(0.01, function()
-					hk:enable()
-				end)
+		-- Determine target modifiers (with potential additional modifier preservation)
+		local modifiers = binding.source.modifiers
+		if binding.allowModifiers then
+			local currentFlags = hs.eventtap.checkKeyboardModifiers()
+			modifiers = getMergedModifiers(binding.target.modifiers, binding.source.modifiers, currentFlags, true)
+			showDebugInfo(binding, "MODIFIERS", "Preserved additional modifiers")
+		end
 
-				showDebugInfo(
-					binding,
-					"PASSTHROUGH: App in exception " .. hs.application.frontmostApplication():bundleID()
-				)
-				return
-			end
+		-- Send the original mac key combination
+		pushKey(modifiers, binding.source.key)
+		showDebugInfo(binding, "EXECUTED")
+		-- hk:disable()
 
-			-- Determine target modifiers (with potential additional modifier preservation)
-			local modifiers = binding.source.modifiers
-			if binding.preserveAdditionalModifiers then
-				local currentFlags = hs.eventtap.checkKeyboardModifiers()
-				modifiers = getMergedModifiers(binding.target.modifiers, binding.source.modifiers, currentFlags, true)
-				showDebugInfo(binding, "MODIFIERS", "Preserved additional modifiers")
-			end
-
-			-- Send the original mac key combination
-			pushKey(modifiers, binding.source.key)
-			showDebugInfo(binding, "EXECUTED")
-			-- hk:disable()
-
-			-- If passthrough is enabled, also send the target key combination
-			if binding.passthrough then
-				pushKey(binding.target.modifiers, binding.target.key)
-				showDebugInfo(binding, "PASSTHROUGH: Sent target key as well")
-			end
-		end, nil)
-	end
+		-- If passthrough is enabled, also send the target key combination
+		if binding.passthrough then
+			pushKey(binding.target.modifiers, binding.target.key)
+			showDebugInfo(binding, "PASSTHROUGH: Sent target key as well")
+		end
+	end, nil)
 end
 -- Configuration summary
 print(string.format("Enhanced key bindings loaded: %d enabled, %d disabled", enabledBindings, disabledBindings))
@@ -360,3 +346,128 @@ local function debugKeys()
 		:start()
 end
 -- debugKeys()
+
+-- TEMP logger: prints every keyDown with its flags
+-- local logTap = hs.eventtap
+-- 	.new({ hs.eventtap.event.types.keyDown }, function(e)
+-- 		local flags = e:getFlags()
+-- 		local keycode = e:getKeyCode()
+-- 		local keyname = hs.keycodes.map[keycode] or ("keycode:" .. keycode)
+-- 		print(
+-- 			string.format(
+-- 				"down: %s | ctrl=%s alt=%s shift=%s cmd=%s",
+-- 				keyname,
+-- 				tostring(flags.ctrl or false),
+-- 				tostring(flags.alt or false),
+-- 				tostring(flags.shift or false),
+-- 				tostring(flags.cmd or false)
+-- 			)
+-- 		)
+-- 		return false
+-- 	end)
+-- 	:start()
+
+-- helper: build a precise matcher for an exact modifier set
+local function flagsMatchExact(flags, requiredMods, allowExtra)
+	local need = { cmd = false, ctrl = false, alt = false, shift = false, fn = false }
+	for _, m in ipairs(requiredMods or {}) do
+		need[m] = true
+	end
+	local allMods = { "cmd", "ctrl", "alt", "shift", "fn" }
+	for _, mod in ipairs(allMods) do
+		local required = need[mod] or false
+		local pressed = flags[mod] or false
+
+		if allowExtra then
+			if required and not pressed then
+				return false
+			end
+		else
+			if pressed ~= required then
+				return false
+			end
+		end
+	end
+
+	return true
+end
+
+local function keycodeFor(name)
+	return hs.keycodes.map[name]
+end
+
+local function newBinding(binding)
+	local tap
+	tap = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function(e)
+		-- debug helper
+		if showAppInfo == true then
+			print(hs.application.frontmostApplication():bundleID())
+		end
+
+		local flags = e:getFlags()
+		local wantCode = keycodeFor(binding.target.key)
+		if e:getKeyCode() ~= wantCode then
+			return false
+		end
+		if not flagsMatchExact(flags, binding.target.modifiers, binding.allowModifiers) then
+			return false
+		end
+
+		-- only execute in the specified apps.
+		if binding.only and #binding.only > 0 then
+			if not hs.fnutils.contains(binding.only, hs.application.frontmostApplication():bundleID()) then
+				showDebugInfo(binding, "SKIPPED: app not included", hs.application.frontmostApplication():bundleID())
+				return
+			end
+		end
+
+		-- Exceptions: let the original go through unchanged
+		if isAppInExceptions(binding.exceptions) then
+			showDebugInfo(binding, "PASSTHROUGH (exception)", "eventtap")
+			return false -- don't consume; system/app receives ctrl+arrow
+		end
+
+		-- Removes key press:
+		if not binding.source or not binding.source.key then
+			showDebugInfo(binding, "SINK", "Key remapped to nothing")
+			return true
+		end
+
+		local modsToSend = binding.source.modifiers
+		-- Allow additional modifiers if they are held down
+		if binding.allowModifiers then
+			showDebugInfo(binding, "ALLOW modifiers 1", table.concat(modsToSend, "+"))
+			modsToSend = getMergedModifiers(binding.target.modifiers, binding.source.modifiers, flags, true)
+			showDebugInfo(binding, "ALLOW modifiers 2", table.concat(modsToSend, "+"))
+		end
+
+		showDebugInfo(binding, "REMAP (eventtap)")
+
+		pushKey(modsToSend, binding.source.key, 0)
+		tap:stop() -- prevents recursive triggering
+
+		-- reenable after key press
+		hs.timer.doAfter(0.001, function()
+			tap:start()
+		end)
+
+		return true -- consume original
+	end)
+	tap:start()
+end
+
+for _, binding in ipairs(keyBindings) do
+	-- Apply default values
+	binding = applyDefaults(binding)
+	-- Skip if binding is disabled
+
+	enabledBindings = enabledBindings + 1
+
+	if not binding.enabled then
+		disabledBindings = disabledBindings + 1
+		showDebugInfo(binding, "SKIPPED")
+	else
+		-- setupEvent(binding)
+		newBinding(binding)
+	end
+end
