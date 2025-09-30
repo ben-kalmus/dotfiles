@@ -106,12 +106,7 @@ local keyBindings = {
 		target = { modifiers = { "ctrl" }, key = "p" },
 		description = "Command Pallette / Print",
 		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
-	},
-	{
-		source = { modifiers = { "cmd", "shift" }, key = "p" },
-		target = { modifiers = { "ctrl", "shift" }, key = "p" },
-		description = "Command Pallette / Print",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		allowModifiers = true,
 	},
 	{
 		source = { modifiers = { "cmd" }, key = "f" },
@@ -122,6 +117,7 @@ local keyBindings = {
 	{
 		source = { modifiers = { "cmd" }, key = "t" },
 		target = { modifiers = { "ctrl" }, key = "t" },
+		allowModifiers = true,
 		only = { "com.google.Chrome", "org.mozilla.firefox" },
 		description = "New Tab",
 		-- exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
@@ -137,7 +133,6 @@ local keyBindings = {
 		description = "Move cursor left by word",
 		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
 		allowModifiers = true,
-		debugHelper = true,
 	},
 	{
 		source = { modifiers = { "fn", "alt" }, key = "right" },
@@ -145,15 +140,12 @@ local keyBindings = {
 		description = "Move cursor right by word",
 		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
 		allowModifiers = true,
-		debugHelper = true,
 	},
 	{
-		source = { modifiers = { "cmd" }, key = "w" },
 		target = { modifiers = { "ctrl" }, key = "w" },
-		description = "Close tab/window",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
-		enabled = false, -- Disabled by default as it might conflict with macOS window closing
-		debugHelper = true,
+		description = "Disable Close tab/window",
+		only = { "com.google.Chrome", "org.mozilla.firefox" },
+		-- debugHelper = true,
 	},
 	{
 		target = { modifiers = { "cmd" }, key = "h" },
@@ -257,60 +249,6 @@ end
 
 showAppInfo = false
 
-local function setupEvent(binding)
-	local hk
-	hk = hs.hotkey.bind(binding.target.modifiers, binding.target.key, nil, function()
-		showDebugInfo(binding, "TRIGGERED")
-
-		if not binding.source or not binding.source.key then
-			showDebugInfo(binding, "SINK", "Key remapped to nothing")
-			return
-		end
-
-		if showAppInfo == true then
-			print(hs.application.frontmostApplication():bundleID())
-		end
-
-		if binding.only and #binding.only > 0 then
-			if not hs.fnutils.contains(binding.only, hs.application.frontmostApplication():bundleID()) then
-				showDebugInfo(binding, "SKIPPED: app not included", hs.application.frontmostApplication():bundleID())
-				return
-			end
-		end
-
-		-- Skip if current app is in exceptions
-		if isAppInExceptions(binding.exceptions) then
-			-- Pass through the normal key combination
-			pushKey(binding.target.modifiers, binding.target.key, 0)
-			hk:disable() -- prevent recursion
-			hs.timer.doAfter(0.01, function()
-				hk:enable()
-			end)
-
-			showDebugInfo(binding, "PASSTHROUGH: App in exception " .. hs.application.frontmostApplication():bundleID())
-			return
-		end
-
-		-- Determine target modifiers (with potential additional modifier preservation)
-		local modifiers = binding.source.modifiers
-		if binding.allowModifiers then
-			local currentFlags = hs.eventtap.checkKeyboardModifiers()
-			modifiers = getMergedModifiers(binding.target.modifiers, binding.source.modifiers, currentFlags, true)
-			showDebugInfo(binding, "MODIFIERS", "Preserved additional modifiers")
-		end
-
-		-- Send the original mac key combination
-		pushKey(modifiers, binding.source.key)
-		showDebugInfo(binding, "EXECUTED")
-		-- hk:disable()
-
-		-- If passthrough is enabled, also send the target key combination
-		if binding.passthrough then
-			pushKey(binding.target.modifiers, binding.target.key)
-			showDebugInfo(binding, "PASSTHROUGH: Sent target key as well")
-		end
-	end, nil)
-end
 -- Configuration summary
 print(string.format("Enhanced key bindings loaded: %d enabled, %d disabled", enabledBindings, disabledBindings))
 
@@ -327,7 +265,6 @@ if debugEnabledCount > 0 then
 	print(string.format("Debug mode enabled for %d bindings", debugEnabledCount))
 end
 
--- hs.hotkey.
 local function debugKeys()
 	hs.eventtap
 		.new({ hs.eventtap.event.types.keyDown, hs.eventtap.event.types.systemDefined }, function(event)
@@ -346,26 +283,6 @@ local function debugKeys()
 		:start()
 end
 -- debugKeys()
-
--- TEMP logger: prints every keyDown with its flags
--- local logTap = hs.eventtap
--- 	.new({ hs.eventtap.event.types.keyDown }, function(e)
--- 		local flags = e:getFlags()
--- 		local keycode = e:getKeyCode()
--- 		local keyname = hs.keycodes.map[keycode] or ("keycode:" .. keycode)
--- 		print(
--- 			string.format(
--- 				"down: %s | ctrl=%s alt=%s shift=%s cmd=%s",
--- 				keyname,
--- 				tostring(flags.ctrl or false),
--- 				tostring(flags.alt or false),
--- 				tostring(flags.shift or false),
--- 				tostring(flags.cmd or false)
--- 			)
--- 		)
--- 		return false
--- 	end)
--- 	:start()
 
 -- helper: build a precise matcher for an exact modifier set
 local function flagsMatchExact(flags, requiredMods, allowExtra)
@@ -398,6 +315,9 @@ end
 
 local function newBinding(binding)
 	local tap
+	-- eventtap takes a function that returns true to consume the event, false to pass it through.
+	-- Or it can return a table of events to replace the original with.
+	-- TODO: we should try to return a modified event rather than synthesizing a new one. https://www.hammerspoon.org/docs/hs.eventtap.event.html#types
 	tap = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function(e)
 		-- debug helper
 		if showAppInfo == true then
@@ -436,9 +356,8 @@ local function newBinding(binding)
 		local modsToSend = binding.source.modifiers
 		-- Allow additional modifiers if they are held down
 		if binding.allowModifiers then
-			showDebugInfo(binding, "ALLOW modifiers 1", table.concat(modsToSend, "+"))
 			modsToSend = getMergedModifiers(binding.target.modifiers, binding.source.modifiers, flags, true)
-			showDebugInfo(binding, "ALLOW modifiers 2", table.concat(modsToSend, "+"))
+			showDebugInfo(binding, "ALLOW extra modifiers", "extra: " .. table.concat(modsToSend, "+"))
 		end
 
 		showDebugInfo(binding, "REMAP (eventtap)")
