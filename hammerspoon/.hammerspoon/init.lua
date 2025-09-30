@@ -48,18 +48,26 @@ local defaultValues = {
 	passthrough = false, -- sends the activated keypress as well
 }
 
-local terminalExceptions = {
+local terminalApps = {
 	"com.apple.Terminal",
 	"com.googlecode.iterm2",
 	"com.github.wez.wezterm",
 }
 
+local browserApps = {
+	"com.apple.Safari",
+	"com.google.Chrome",
+	"org.mozilla.firefox",
+}
+
 -- Key binding definitions
 local keyBindings = {
-	-- source: key to send to Mac OS. If empty, no events are fired. This is useful to disable a key.
-	-- target: key to activate on
+	-- source: key to rebind. this is sent to Mac OS. If empty, no events are fired. This is useful to disable a key.
+	-- target: key to activate on. `Source` is rebound to `Target`.
 	-- description: for debug purposes
-	-- exceptions: App to exclude from remapping (by bundle ID), to see bundle ID use: hs.application.frontmostApplication():bundleID()
+	-- exceptions: App to exclude from remapping (by bundle ID), to see bundle ID enter this into Hammerspoon console and alt tab into it:
+	--             hs.timer.doAfter(3, function () print(hs.application.frontmostApplication():bundleID()) end)
+	--
 	-- only: List of Apps (by bundle ID) to only enable this keybinding for.
 	-- enabled: keybind ative
 	-- passthrough: sends the activated keypress as well
@@ -67,19 +75,21 @@ local keyBindings = {
 		source = { modifiers = { "cmd" }, key = "c" },
 		target = { modifiers = { "ctrl" }, key = "c" },
 		description = "Copy",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		exceptions = terminalApps,
+		allowModifiers = true,
 	},
 	{
 		source = { modifiers = { "cmd" }, key = "v" },
 		target = { modifiers = { "ctrl" }, key = "v" },
 		description = "Paste",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		exceptions = terminalApps,
+		allowModifiers = true,
 	},
 	{
 		source = { modifiers = { "cmd" }, key = "x" },
 		target = { modifiers = { "ctrl" }, key = "x" },
 		description = "Cut",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		exceptions = terminalApps,
 	},
 	{
 		-- collides with ctrl-a which moves cursor to start
@@ -87,51 +97,52 @@ local keyBindings = {
 		source = { modifiers = { "cmd" }, key = "a" },
 		target = { modifiers = { "ctrl" }, key = "a" },
 		description = "Select All",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		exceptions = terminalApps,
 	},
 	{
 		source = { modifiers = { "cmd" }, key = "z" },
 		target = { modifiers = { "ctrl" }, key = "z" },
 		description = "Undo",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		exceptions = terminalApps,
 	},
 	{
 		source = { modifiers = { "cmd", "shift" }, key = "z" },
 		target = { modifiers = { "ctrl" }, key = "y" },
 		description = "Redo",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		exceptions = terminalApps,
 	},
 	{
 		source = { modifiers = { "cmd" }, key = "r" },
 		target = { modifiers = { "ctrl" }, key = "r" },
 		description = "Refresh / Reload",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		exceptions = terminalApps,
+		allowModifiers = true,
 	},
 	{
 		source = { modifiers = { "cmd" }, key = "p" },
 		target = { modifiers = { "ctrl" }, key = "p" },
 		description = "Command Pallette / Print",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		exceptions = terminalApps,
 		allowModifiers = true,
 	},
 	{
 		source = { modifiers = { "cmd" }, key = "f" },
 		target = { modifiers = { "ctrl" }, key = "f" },
 		description = "Find",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		exceptions = terminalApps,
 	},
 	{
 		source = { modifiers = { "cmd" }, key = "left" },
 		target = { key = "home" },
 		description = "HOME key",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		exceptions = terminalApps,
 		allowModifiers = true,
 	},
 	{
 		source = { modifiers = { "cmd" }, key = "right" },
 		target = { key = "end" },
 		description = "END key",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		exceptions = terminalApps,
 		allowModifiers = true,
 	},
 	{
@@ -140,7 +151,7 @@ local keyBindings = {
 		allowModifiers = true,
 		only = { "com.google.Chrome", "org.mozilla.firefox" },
 		description = "New Tab",
-		-- exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		-- exceptions = terminalExceptions,
 	},
 	{
 		source = { modifiers = {}, key = "escape" },
@@ -151,21 +162,29 @@ local keyBindings = {
 		source = { modifiers = { "fn", "alt" }, key = "left" },
 		target = { modifiers = { "fn", "ctrl" }, key = "left" },
 		description = "Move cursor left by word",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		exceptions = terminalApps,
 		allowModifiers = true,
 	},
 	{
 		source = { modifiers = { "fn", "alt" }, key = "right" },
 		target = { modifiers = { "fn", "ctrl" }, key = "right" },
 		description = "Move cursor right by word",
-		exceptions = { "com.github.wez.wezterm", "com.apple.Terminal" },
+		exceptions = terminalApps,
 		allowModifiers = true,
 	},
+	-- {
+	-- 	-- TODO: allow ability to remap a modifier key alone
+	-- 	-- Useful in vim where ALT/OPT is swapped.
+	-- 	source = { modifiers = { "alt" } },
+	-- 	target = { modifiers = { "cmd" } },
+	-- 	description = "ALT as OPT",
+	-- 	only = terminalApps,
+	-- },
 	{
+		-- All too easy to accidentally kill a tab or window.
 		target = { modifiers = { "ctrl" }, key = "w" },
 		description = "Disable Close tab/window",
-		only = { "com.google.Chrome", "org.mozilla.firefox" },
-		-- debugHelper = true,
+		only = browserApps,
 	},
 	{
 		target = { modifiers = { "cmd" }, key = "h" },
@@ -267,8 +286,6 @@ local function pushKey(modifiers, key, delay)
 	end)
 end
 
-local showAppInfo = false
-
 -- Configuration summary
 print(string.format("Enhanced key bindings loaded: %d enabled, %d disabled", enabledBindings, disabledBindings))
 
@@ -339,11 +356,6 @@ local function newBinding(binding)
 	-- Or it can return a table of events to replace the original with.
 	-- TODO: we should try to return a modified event rather than synthesizing a new one. https://www.hammerspoon.org/docs/hs.eventtap.event.html#types
 	tap = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function(e)
-		-- debug helper
-		if showAppInfo == true then
-			print(hs.application.frontmostApplication():bundleID())
-		end
-
 		local flags = e:getFlags()
 		local wantCode = keycodeFor(binding.target.key)
 		if e:getKeyCode() ~= wantCode then
@@ -357,7 +369,7 @@ local function newBinding(binding)
 		if binding.only and #binding.only > 0 then
 			if not hs.fnutils.contains(binding.only, hs.application.frontmostApplication():bundleID()) then
 				showDebugInfo(binding, "SKIPPED: app not included", hs.application.frontmostApplication():bundleID())
-				return
+				return false
 			end
 		end
 
@@ -370,7 +382,7 @@ local function newBinding(binding)
 		-- Removes key press:
 		if not binding.source or not binding.source.key then
 			showDebugInfo(binding, "SINK", "Key remapped to nothing")
-			return true
+			return true -- consume original
 		end
 
 		local modsToSend = binding.source.modifiers
