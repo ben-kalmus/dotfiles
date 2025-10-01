@@ -42,6 +42,8 @@ spoon.ClipboardTool:start()
 spoon.ClipboardTool:bindHotkeys({
 	show_clipboard = { { "alt" }, "v" },
 })
+-- disable popup on copy
+spoon.ClipboardTool.show_copied_alert = false
 
 -- ================================================================================================
 -- Mac to Linux key binding configuration
