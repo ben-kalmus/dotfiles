@@ -17,9 +17,10 @@ local function reloadConfig(files)
 	end
 
 	if doReload then
-		hs.timer.doAfter(0.5, function()
-			hs.reload()
-		end)
+		-- hs.timer.doAfter(0.5, function()
+		hs.reload()
+		hs.alert.show("Hammerspoon config loaded")
+		-- end)
 	end
 end
 hs.pathwatcher.new(os.getenv("HOME") .. "/.hammerspoon/", reloadConfig):start()
@@ -34,6 +35,13 @@ hs.alert.show("Hammerspoon config loaded")
 hs.loadSpoon("Caffeine")
 spoon.Caffeine:start()
 spoon.Caffeine:setState(true)
+
+-- Clipboard tool: history.
+hs.loadSpoon("ClipboardTool")
+spoon.ClipboardTool:start()
+spoon.ClipboardTool:bindHotkeys({
+	show_clipboard = { { "alt" }, "v" },
+})
 
 -- ================================================================================================
 -- Mac to Linux key binding configuration
@@ -84,6 +92,18 @@ local keyBindings = {
 		description = "Paste",
 		exceptions = terminalApps,
 		allowModifiers = true,
+	},
+	{
+		source = { modifiers = { "cmd" }, key = "b" },
+		target = { modifiers = { "ctrl" }, key = "b" },
+		description = "Bold",
+		exceptions = terminalApps,
+	},
+	{
+		source = { modifiers = { "cmd" }, key = "i" },
+		target = { modifiers = { "ctrl" }, key = "i" },
+		description = "Italic",
+		exceptions = terminalApps,
 	},
 	{
 		source = { modifiers = { "cmd" }, key = "x" },
@@ -272,8 +292,8 @@ local function showDebugInfo(binding, action, additionalInfo)
 	hs.alert.show(message, 2)
 end
 
-print("All keycodes:")
-print(inspect(hs.keycodes.map))
+-- print("All keycodes:")
+-- print(inspect(hs.keycodes.map))
 
 -- Apply all key bindings
 local enabledBindings = 0
