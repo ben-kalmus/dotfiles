@@ -134,6 +134,12 @@ config.keys = {
 	},
 	-- Enter copy mode with Vim-style controls
 	{ key = "[", mods = "LEADER", action = act.ActivateCopyMode },
+
+    -- Move around panes
+    {key="h", mods="LEADER|SHIFT", action=wezterm.action{ActivatePaneDirection="Left"}},
+    {key="j", mods="LEADER|SHIFT", action=wezterm.action{ActivatePaneDirection="Down"}},
+    {key="k", mods="LEADER|SHIFT", action=wezterm.action{ActivatePaneDirection="Up"}},
+    {key="l", mods="LEADER|SHIFT", action=wezterm.action{ActivatePaneDirection="Right"}},
 }
 
 -- Keybindings inside Copy Mode
