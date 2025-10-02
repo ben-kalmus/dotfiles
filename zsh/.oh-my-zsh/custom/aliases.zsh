@@ -97,6 +97,10 @@ alias tkw='tmux kill-window'
 function minimetis-kill-pod() {
   local podName=${1:-"api"}
   local namespace=${2:-"minimetis"}
+
+  # Must switch to minimetis context, otherwise we could kill a pod in another cluster by mistake.
+  kubectl config use-context k3d-minimetis || exit 1
+
   echo "Deleting pods with name pattern: '(${podName})-[\\w\\d-]*\\w' in namespace '${namespace}'"
   kubectl get pod -n ${namespace}  --no-headers -o custom-columns=":metadata.name" | grep -v 'keys' | grep -Eo "^(${podName})-[a-zA-Z0-9\-]*\w" | xargs kubectl delete pod -n ${namespace}
 }
