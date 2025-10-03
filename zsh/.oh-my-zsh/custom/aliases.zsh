@@ -73,6 +73,14 @@ alias di='docker images'
 alias dps='docker ps'
 alias dps-exited='docker ps --filter "status=exited"'
 
+# kube 
+alias k='kubectl'
+alias kg='kubectl get'
+alias kd='kubectl describe'
+alias ke='kubectl edit'
+alias kl='kubectl logs'
+alias kga='kubectl get all'
+
 # parsers
 alias prettyjson='python3 -m json.tool'
 function format-json() {
