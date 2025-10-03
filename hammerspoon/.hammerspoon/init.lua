@@ -194,6 +194,13 @@ local keyBindings = {
 		exceptions = terminalApps,
 		allowModifiers = true,
 	},
+	{
+		source = { modifiers = { "alt" }, key = "delete" },
+		target = { modifiers = { "ctrl" }, key = "delete" },
+		description = "Delete by one word",
+		exceptions = terminalApps,
+		allowModifiers = true,
+	},
 	-- {
 	-- 	-- TODO: allow ability to remap a modifier key alone
 	-- 	-- Useful in vim where ALT/OPT is swapped.
