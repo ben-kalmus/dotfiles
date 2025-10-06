@@ -1,5 +1,7 @@
 -- Pull in the wezterm API
 local wezterm = require("wezterm")
+local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
+wezterm.plugin.update_all()
 
 -- This will hold the configuration.
 local config = wezterm.config_builder()
@@ -135,11 +137,59 @@ config.keys = {
 	-- Enter copy mode with Vim-style controls
 	{ key = "[", mods = "LEADER", action = act.ActivateCopyMode },
 
-    -- Move around panes
-    {key="h", mods="LEADER|SHIFT", action=wezterm.action{ActivatePaneDirection="Left"}},
-    {key="j", mods="LEADER|SHIFT", action=wezterm.action{ActivatePaneDirection="Down"}},
-    {key="k", mods="LEADER|SHIFT", action=wezterm.action{ActivatePaneDirection="Up"}},
-    {key="l", mods="LEADER|SHIFT", action=wezterm.action{ActivatePaneDirection="Right"}},
+	-- Move around panes
+	{ key = "h", mods = "LEADER|SHIFT", action = wezterm.action({ ActivatePaneDirection = "Left" }) },
+	{ key = "j", mods = "LEADER|SHIFT", action = wezterm.action({ ActivatePaneDirection = "Down" }) },
+	{ key = "k", mods = "LEADER|SHIFT", action = wezterm.action({ ActivatePaneDirection = "Up" }) },
+	{ key = "l", mods = "LEADER|SHIFT", action = wezterm.action({ ActivatePaneDirection = "Right" }) },
+	-- Session save and restore
+	{
+		key = "s",
+		mods = "LEADER|SHIFT",
+		action = wezterm.action_callback(function(win, pane)
+			resurrect.state_manager.save_state(resurrect.workspace_state.get_workspace_state())
+			resurrect.window_state.save_window_action()
+		end),
+	},
+	{
+		key = "r",
+		mods = "LEADER|SHIFT",
+		action = wezterm.action_callback(function(win, pane)
+			resurrect.fuzzy_loader.fuzzy_load(win, pane, function(id, label)
+				local type = string.match(id, "^([^/]+)") -- match before '/'
+				id = string.match(id, "([^/]+)$") -- match after '/'
+				id = string.match(id, "(.+)%..+$") -- remove file extention
+				local opts = {
+					relative = true,
+					restore_text = true,
+					on_pane_restore = resurrect.tab_state.default_on_pane_restore,
+
+					window = pane:window(),
+					close_open_tabs = true,
+					-- window = win:mux_window(),
+					-- tab = win:active_tab(),
+				}
+				if type == "workspace" then
+					local state = resurrect.state_manager.load_state(id, "workspace")
+					-- create new workspace with previous name
+					-- Source: https://github.com/MLFlexer/resurrect.wezterm/issues/73#issuecomment-2572924018
+					win:perform_action(
+						wezterm.action.SwitchToWorkspace({
+							name = state.workspace,
+						}),
+						pane
+					)
+					resurrect.workspace_state.restore_workspace(state, opts)
+				elseif type == "window" then
+					local state = resurrect.state_manager.load_state(id, "window")
+					resurrect.window_state.restore_window(pane:window(), state, opts)
+				elseif type == "tab" then
+					local state = resurrect.state_manager.load_state(id, "tab")
+					resurrect.tab_state.restore_tab(pane:tab(), state, opts)
+				end
+			end)
+		end),
+	},
 }
 
 -- Keybindings inside Copy Mode

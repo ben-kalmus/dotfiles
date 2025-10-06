@@ -134,6 +134,9 @@ bindkey "^[[B" history-beginning-search-forward
 # - $ZSH_CUSTOM/macos.zsh
 # For a full list of active aliases, run `alias`.
 
+# Wezterm shell integration:
+[ -s "$HOME/.wezterm-shel.sh" ] && \. "$HOME/.wezterm-shel.sh"
+
 source $HOME/.config/zsh/scripts/search-replace.sh
 
 source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
