@@ -7,6 +7,10 @@ package.path = table.concat({
 
 local inspect = require("inspect")
 
+-- ================================================================================================
+-- Auto reload config
+-- ================================================================================================
+
 -- Reload config when files change
 local function reloadConfig(files)
 	local doReload = false
@@ -45,6 +49,62 @@ spoon.ClipboardTool:bindHotkeys({
 -- disable popup on copy
 spoon.ClipboardTool.show_copied_alert = false
 
+-- ================================================================================================
+-- Event Hooks
+-- ================================================================================================
+-- Fix Cmd-Tab to minimized apps: automatically unminimize + focus
+hs.window.animationDuration = 0
+local okSpaces, spaces = pcall(require, "hs.spaces") -- optional
+
+-- Watch for app activation events, if an app is selected but is hidden or minimized, then unhide/unminimize it (alt tab fix).
+appWindowWatcher = hs.application.watcher.new(function(appName, eventType, app)
+	if eventType ~= hs.application.watcher.activated then
+		return
+	end
+	app = app or hs.application.get(appName)
+	if not app then
+		return
+	end
+
+	-- If the app was hidden (⌘H), unhide it
+	if app:isHidden() then
+		app:unhide()
+	end
+
+	local wins = app:allWindows()
+	-- TODO: if app is not open, maybe we can launch it?
+	-- local hasVisible = false
+	-- for _, w in ipairs(wins) do
+	-- 	if w:isStandard() and w:isVisible() and not w:isMinimized() then
+	-- 		hasVisible = true
+	-- 		break
+	-- 	end
+	-- end
+
+	-- -- Ask the app to re-open a window if none are visible
+	-- if not hasVisible then
+	-- 	app:open()
+	-- end
+
+	-- Unminimize anything that’s minimized; optionally move to current Space
+	local currentSpace = okSpaces and spaces.focusedSpace() or nil
+	for _, w in ipairs(wins) do
+		if w:isMinimized() then
+			w:unminimize()
+			if currentSpace then
+				spaces.moveWindowToSpace(w, currentSpace)
+			end
+		end
+	end
+
+	-- Ensure something sensible is focused
+	local target = app:mainWindow() or app:focusedWindow() or wins[1]
+	if target then
+		target:focus()
+	end
+end)
+
+appWindowWatcher:start()
 -- ================================================================================================
 -- Mac to Linux key binding configuration
 -- ================================================================================================
