@@ -188,6 +188,12 @@ local keyBindings = {
 		exceptions = terminalApps,
 	},
 	{
+		source = { modifiers = { "shift", "cmd" }, key = "z" },
+		target = { modifiers = { "shift", "ctrl" }, key = "z" },
+		description = "Redo (z key)",
+		exceptions = terminalApps,
+	},
+	{
 		source = { modifiers = { "cmd", "shift" }, key = "z" },
 		target = { modifiers = { "ctrl" }, key = "y" },
 		description = "Redo",
