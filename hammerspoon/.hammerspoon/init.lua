@@ -105,6 +105,39 @@ appWindowWatcher = hs.application.watcher.new(function(appName, eventType, app)
 end)
 
 appWindowWatcher:start()
+
+function contains(list, value)
+	for _, v in ipairs(list) do
+		if v == value then
+			return true
+		end
+	end
+	return false
+end
+
+-- Screen lock watcher
+-- Detects lock/unlock and enable/disable Caffeine accordingly
+watcher = hs.caffeinate.watcher.new(function(eventType)
+	local activateEvents = {
+		hs.caffeinate.watcher.screensDidUnlock,
+		hs.caffeinate.watcher.screensDidWake,
+		hs.caffeinate.watcher.systemDidWake,
+	}
+	local deactivateEvents = {
+		hs.caffeinate.watcher.screensDidLock,
+		hs.caffeinate.watcher.systemWillSleep,
+	}
+	if contains(activateEvents, eventType) then
+		print("Activated Caffeine on event " .. eventType)
+		spoon.Caffeine:setState(true)
+	elseif contains(deactivateEvents, eventType) then
+		print("Deactivated Caffeine on event " .. eventType)
+		spoon.Caffeine:setState(false)
+	end
+end)
+
+watcher:start()
+
 -- ================================================================================================
 -- Mac to Linux key binding configuration
 -- ================================================================================================
