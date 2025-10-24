@@ -260,6 +260,13 @@ local keyBindings = {
 		allowModifiers = true,
 	},
 	{
+		source = { modifiers = { "cmd" }, key = "s" },
+		target = { modifiers = { "ctrl" }, key = "s" },
+		description = "Save",
+		exceptions = terminalApps,
+		allowModifiers = true,
+	},
+	{
 		source = { modifiers = { "cmd" }, key = "right" },
 		target = { key = "end" },
 		description = "END key",
