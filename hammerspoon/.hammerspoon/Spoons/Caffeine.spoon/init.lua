@@ -19,6 +19,8 @@ obj.license = "MIT - https://opensource.org/licenses/MIT"
 obj.menuBarItem = nil
 obj.hotkeyToggle = nil
 
+obj.iconEnabled = false
+
 -- Internal function used to find our location, so we know where to load files from
 local function script_path()
     local str = debug.getinfo(2, "S").source:sub(2)
@@ -61,8 +63,11 @@ end
 ---  * The Caffeine object
 function obj:start()
     if self.menuBarItem then self:stop() end
-    self.menuBarItem = hs.menubar.new()
-    self.menuBarItem:setClickCallback(self.clicked)
+    if self.iconEnabled then
+      self.menuBarItem = hs.menubar.new()
+      self.menuBarItem:setClickCallback(self.clicked)
+    end
+
     if (self.hotkeyToggle) then
         self.hotkeyToggle:enable()
     end
@@ -90,6 +95,10 @@ function obj:stop()
 end
 
 function obj.setDisplay(state)
+    if obj.iconEnabled == false then
+      return
+    end
+
     local result
     if state then
         result = obj.menuBarItem:setIcon(obj.spoonPath.."/caffeine-on.pdf")
@@ -114,6 +123,20 @@ end
 function obj:setState(on)
     hs.caffeinate.set("displayIdle", on)
     obj.setDisplay(on)
+end
+
+
+--- Caffeine:showIcon(on)
+--- Method
+--- Sets whether or not the menu bar icon should be shown.
+---
+--- Parameters:
+---  * on - A boolean, true if icon should be displayed.
+---
+--- Returns:
+---  * None
+function obj:showIcon(on)
+    obj.iconEnabled = on
 end
 
 return obj
