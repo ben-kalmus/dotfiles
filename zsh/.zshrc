@@ -4,17 +4,17 @@
 # Fix for bash. Default bash version on mac is 3.2. This breaks some plugins (e.g tmux-sessionx)
 # To use up-to-date bash version: /usr/local/bin/ must come before bin/
 # (Stackoverflow solution)[https://stackoverflow.com/questions/76399463/why-are-my-tmux-plugins-not-working-on-macos-even-after-restarting-the-session]
-export PATH=$HOME/.local/bin:/usr/local/bin:$HOME/bin:$PATH
+export PATH="$HOME/.local/bin:/usr/local/bin:$HOME/bin:$PATH"
 export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
 export PATH=$PATH:$(go env GOPATH)/bin
+export PATH="$(brew --prefix)/opt/llvm@20/bin:$(brew --prefix)/opt/lld@20/bin:$PATH"
 
 # Path to your Oh My Zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
 export GOPRIVATE="github.com/algolia/*"
 export VAULT_ADDR=https://vault.algolia.net
 
-
-# Set name of the theme to load --- if set to "random", it will
+## Set name of the theme to load --- if set to "random", it will
 # load a random theme each time Oh My Zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
@@ -158,7 +158,6 @@ compinit
 if command -v ngrok &>/dev/null; then
   eval "$(ngrok completion)"
 fi
-
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
