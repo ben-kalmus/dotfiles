@@ -25,7 +25,7 @@ alias gits="git status"
 alias gp='git push'
 alias gpl='git pull'
 #alias gu='git reset --mixed HEAD'
-alias gpf="git push -f"
+alias gpf="git push --force-with-lease"
 alias gfa="git fetch --all"
 function pushnew() {
     git push --set-upstream origin $(git branch --show-current)
