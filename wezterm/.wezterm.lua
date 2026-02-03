@@ -190,6 +190,14 @@ config.keys = {
 			end)
 		end),
 	},
+	-- update all plugins
+	{
+		key = "u",
+		mods = "LEADER",
+		action = wezterm.action_callback(function(win, pane)
+			wezterm.plugin.update_all()
+		end),
+	},
 }
 
 -- Keybindings inside Copy Mode
