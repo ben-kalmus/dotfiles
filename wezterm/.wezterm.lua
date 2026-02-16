@@ -7,6 +7,37 @@ wezterm.plugin.update_all()
 local config = wezterm.config_builder()
 local act = wezterm.action
 
+local AUTO_SAVE_ALL_WORKSPACES_INTERVAL_SECONDS = 60 * 60
+
+local function notify(window, title, message, timeout_ms)
+	local timeout = timeout_ms or 4000
+	local delivered = false
+	local notify_err = nil
+
+	if window then
+		local ok, err = pcall(function()
+			window:toast_notification(title, message, nil, timeout)
+		end)
+		delivered = ok
+		notify_err = err
+	end
+
+	if not delivered and wezterm.gui then
+		local windows = wezterm.gui.gui_windows()
+		if windows and windows[1] then
+			local ok, err = pcall(function()
+				windows[1]:toast_notification(title, message, nil, timeout)
+			end)
+			delivered = ok
+			notify_err = err
+		end
+	end
+
+	if not delivered then
+		wezterm.log_info(string.format("[%s] %s (notify error: %s)", title, message, tostring(notify_err)))
+	end
+end
+
 wezterm.on("update-right-status", function(window, pane)
 	local current = window:active_workspace()
 	local last_seen = wezterm.GLOBAL._last_seen_workspace
@@ -41,6 +72,52 @@ local function switch_workspace(window, pane, workspace)
 	wezterm.GLOBAL.previous_workspace = current_workspace
 end
 
+local function save_all_open_workspaces_state()
+	local workspace_states = {}
+
+	for _, mux_win in ipairs(wezterm.mux.all_windows()) do
+		local workspace = mux_win:get_workspace()
+		if workspace and workspace ~= "" then
+			if workspace_states[workspace] == nil then
+				workspace_states[workspace] = {
+					workspace = workspace,
+					window_states = {},
+				}
+			end
+			table.insert(workspace_states[workspace].window_states, resurrect.window_state.get_window_state(mux_win))
+		end
+	end
+
+	local saved_count = 0
+	for _, workspace_state in pairs(workspace_states) do
+		resurrect.state_manager.save_state(workspace_state)
+		saved_count = saved_count + 1
+	end
+
+	return saved_count
+end
+
+local function start_periodic_save_all_workspaces()
+	if wezterm.GLOBAL._resurrect_periodic_save_started then
+		return
+	end
+	wezterm.GLOBAL._resurrect_periodic_save_started = true
+
+	local function tick()
+		local ok, result = pcall(save_all_open_workspaces_state)
+		if ok then
+			wezterm.log_info(string.format("resurrect.wezterm: auto-saved %d workspaces", result))
+		else
+			wezterm.log_error("resurrect.wezterm: auto-save failed: " .. tostring(result))
+		end
+		wezterm.time.call_after(AUTO_SAVE_ALL_WORKSPACES_INTERVAL_SECONDS, tick)
+	end
+
+	wezterm.time.call_after(AUTO_SAVE_ALL_WORKSPACES_INTERVAL_SECONDS, tick)
+end
+
+start_periodic_save_all_workspaces()
+
 local function toggle_last_workspace(window, pane)
 	local current_workspace = window:active_workspace()
 	local workspace = wezterm.GLOBAL.previous_workspace
@@ -64,7 +141,7 @@ config.color_scheme = "Tokyo Night Moon"
 config.window_background_opacity = 0.93
 
 config.term = "xterm-256color"
-config.enable_kitty_graphics = false
+config.enable_kitty_graphics = true
 config.scrollback_lines = 100000
 config.enable_scroll_bar = true
 
@@ -144,11 +221,21 @@ config.keys = {
 	{ key = "l", mods = "LEADER|SHIFT", action = wezterm.action({ ActivatePaneDirection = "Right" }) },
 	-- Session save and restore
 	{
-		key = "s",
-		mods = "LEADER|SHIFT",
+		key = "o",
+		mods = "LEADER",
 		action = wezterm.action_callback(function(win, pane)
-			resurrect.state_manager.save_state(resurrect.workspace_state.get_workspace_state())
-			resurrect.window_state.save_window_action()
+			wezterm.log_info("resurrect.wezterm: save all requested (LEADER+o)")
+			local ok, result = pcall(save_all_open_workspaces_state)
+			if ok then
+				local msg = string.format("Saved %d workspaces", result)
+				wezterm.log_info("resurrect.wezterm: " .. msg)
+				notify(win, "resurrect.wezterm", msg, 3500)
+				return
+			end
+
+			local msg = "Failed to save all workspaces: " .. tostring(result)
+			wezterm.log_error(msg)
+			notify(win, "resurrect.wezterm", msg, 5000)
 		end),
 	},
 	{
@@ -160,7 +247,7 @@ config.keys = {
 				id = string.match(id, "([^/]+)$") -- match after '/'
 				id = string.match(id, "(.+)%..+$") -- remove file extention
 				local opts = {
-					relative = true,
+					relative = false,
 					restore_text = true,
 					on_pane_restore = resurrect.tab_state.default_on_pane_restore,
 
