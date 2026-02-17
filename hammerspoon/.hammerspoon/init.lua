@@ -14,7 +14,7 @@ local inspect = require("inspect")
 -- Reload config when files change
 local function reloadConfig(files)
 	local doReload = false
-	for _, file in pairs(files) do
+	for _, file in ipairs(files) do
 		if file:sub(-4) == ".lua" then
 			doReload = true
 		end
@@ -27,7 +27,26 @@ local function reloadConfig(files)
 		-- end)
 	end
 end
-hs.pathwatcher.new(os.getenv("HOME") .. "/.hammerspoon/", reloadConfig):start()
+
+-- Keep strong references to watchers; otherwise they can be garbage-collected.
+local configWatchers = {}
+local function startConfigWatchers()
+	local watchPaths = { hs.configdir, os.getenv("HOME") .. "/.hammerspoon" }
+	local started = {}
+
+	for _, path in ipairs(watchPaths) do
+		if not started[path] then
+			local watcher = hs.pathwatcher.new(path, reloadConfig)
+			if watcher then
+				watcher:start()
+				table.insert(configWatchers, watcher)
+				started[path] = true
+				print("Watching config path: " .. path)
+			end
+		end
+	end
+end
+startConfigWatchers()
 
 hs.alert.show("Hammerspoon config loaded")
 
