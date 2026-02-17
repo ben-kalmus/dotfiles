@@ -485,14 +485,32 @@ local function keycodeFor(name)
 	return hs.keycodes.map[name]
 end
 
+local function isModifierKey(name)
+	return hs.fnutils.contains({ "cmd", "ctrl", "alt", "shift", "fn", "capslock" }, name)
+end
+
 local function newBinding(binding)
 	local tap
 	-- eventtap takes a function that returns true to consume the event, false to pass it through.
 	-- Or it can return a table of events to replace the original with.
 	-- TODO: we should try to return a modified event rather than synthesizing a new one. https://www.hammerspoon.org/docs/hs.eventtap.event.html#types
-	tap = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function(e)
+	tap = hs.eventtap.new({ hs.eventtap.event.types.keyDown, hs.eventtap.event.types.flagsChanged }, function(e)
 		local flags = e:getFlags()
+		local eventType = e:getType()
 		local wantCode = keycodeFor(binding.target.key)
+		local targetIsModifier = isModifierKey(binding.target.key)
+
+		-- Modifier keys (like capslock) emit flagsChanged, not keyDown.
+		if targetIsModifier then
+			if eventType ~= hs.eventtap.event.types.flagsChanged then
+				return false
+			end
+		else
+			if eventType ~= hs.eventtap.event.types.keyDown then
+				return false
+			end
+		end
+
 		if e:getKeyCode() ~= wantCode then
 			return false
 		end
@@ -529,8 +547,14 @@ local function newBinding(binding)
 
 		showDebugInfo(binding, "REMAP (eventtap)")
 
-		pushKey(modsToSend, binding.source.key, 0)
 		tap:stop() -- prevents recursive triggering
+
+		-- Caps Lock toggles OS state even when consumed; force it back off.
+		if binding.target.key == "capslock" then
+			hs.hid.capslock.set(false)
+		end
+
+		pushKey(modsToSend, binding.source.key, 0)
 
 		-- reenable after key press
 		hs.timer.doAfter(0.001, function()
