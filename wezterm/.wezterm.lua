@@ -216,6 +216,12 @@ config.term = "xterm-256color"
 config.enable_kitty_graphics = true
 config.scrollback_lines = 100000
 config.enable_scroll_bar = true
+config.window_padding = {
+	left = 0,
+	right = 0,
+	top = 0,
+	bottom = 0,
+}
 
 -- keybinds link https://wezterm.org/config/default-keys.html
 -- remove ctrl - and ctrl = which resize window
