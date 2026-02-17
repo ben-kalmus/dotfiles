@@ -7,7 +7,10 @@ wezterm.plugin.update_all()
 local config = wezterm.config_builder()
 local act = wezterm.action
 
-local AUTO_SAVE_ALL_WORKSPACES_INTERVAL_SECONDS = 60 * 60
+local AUTO_SAVE_ALL_WORKSPACES_INTERVAL_SECONDS = 300
+local RESURRECT_MAX_NLINES = 10000
+
+resurrect.state_manager.set_max_nlines(RESURRECT_MAX_NLINES)
 
 local function notify(window, title, message, timeout_ms)
 	local timeout = timeout_ms or 4000
@@ -37,6 +40,21 @@ local function notify(window, title, message, timeout_ms)
 		wezterm.log_info(string.format("[%s] %s (notify error: %s)", title, message, tostring(notify_err)))
 	end
 end
+
+local function register_resurrect_event_handlers()
+	if wezterm.GLOBAL._resurrect_event_handlers_registered then
+		return
+	end
+	wezterm.GLOBAL._resurrect_event_handlers_registered = true
+
+	wezterm.on("resurrect.error", function(err)
+		local msg = "resurrect error: " .. tostring(err)
+		wezterm.log_error("resurrect.wezterm: " .. msg)
+		notify(nil, "resurrect.wezterm", msg, 5000)
+	end)
+end
+
+register_resurrect_event_handlers()
 
 wezterm.on("update-right-status", function(window, pane)
 	local current = window:active_workspace()
@@ -72,6 +90,47 @@ local function switch_workspace(window, pane, workspace)
 	wezterm.GLOBAL.previous_workspace = current_workspace
 end
 
+local function summarize_pane_tree(pane_tree, acc)
+	if not pane_tree then
+		return
+	end
+
+	acc.panes = acc.panes + 1
+	if pane_tree.cwd and pane_tree.cwd ~= "" then
+		acc.panes_with_cwd = acc.panes_with_cwd + 1
+	end
+	if pane_tree.text and pane_tree.text ~= "" then
+		acc.panes_with_text = acc.panes_with_text + 1
+	end
+	if pane_tree.alt_screen_active then
+		acc.alt_screen_panes = acc.alt_screen_panes + 1
+	end
+
+	summarize_pane_tree(pane_tree.right, acc)
+	summarize_pane_tree(pane_tree.bottom, acc)
+end
+
+local function summarize_workspace_state(workspace_state)
+	local summary = {
+		windows = 0,
+		tabs = 0,
+		panes = 0,
+		panes_with_cwd = 0,
+		panes_with_text = 0,
+		alt_screen_panes = 0,
+	}
+
+	summary.windows = #(workspace_state.window_states or {})
+	for _, window_state in ipairs(workspace_state.window_states or {}) do
+		for _, tab_state in ipairs(window_state.tabs or {}) do
+			summary.tabs = summary.tabs + 1
+			summarize_pane_tree(tab_state.pane_tree, summary)
+		end
+	end
+
+	return summary
+end
+
 local function save_all_open_workspaces_state()
 	local workspace_states = {}
 
@@ -90,7 +149,20 @@ local function save_all_open_workspaces_state()
 
 	local saved_count = 0
 	for _, workspace_state in pairs(workspace_states) do
+		local summary = summarize_workspace_state(workspace_state)
 		resurrect.state_manager.save_state(workspace_state)
+		wezterm.log_info(
+			string.format(
+				"resurrect.wezterm: saved workspace=%s windows=%d tabs=%d panes=%d cwd=%d text=%d alt=%d",
+				tostring(workspace_state.workspace),
+				summary.windows,
+				summary.tabs,
+				summary.panes,
+				summary.panes_with_cwd,
+				summary.panes_with_text,
+				summary.alt_screen_panes
+			)
+		)
 		saved_count = saved_count + 1
 	end
 
@@ -243,38 +315,67 @@ config.keys = {
 		mods = "LEADER|SHIFT",
 		action = wezterm.action_callback(function(win, pane)
 			resurrect.fuzzy_loader.fuzzy_load(win, pane, function(id, label)
-				local type = string.match(id, "^([^/]+)") -- match before '/'
-				id = string.match(id, "([^/]+)$") -- match after '/'
-				id = string.match(id, "(.+)%..+$") -- remove file extention
-				local opts = {
-					relative = false,
-					restore_text = true,
-					on_pane_restore = resurrect.tab_state.default_on_pane_restore,
+				local item_type = string.match(id, "^([^/]+)") -- match before '/'
+				local state_id = string.match(id, "([^/]+)$") -- match after '/'
+				state_id = string.match(state_id, "(.+)%..+$") -- remove file extension
 
-					window = pane:window(),
-					close_open_tabs = true,
-					-- window = win:mux_window(),
-					-- tab = win:active_tab(),
-				}
-				if type == "workspace" then
-					local state = resurrect.state_manager.load_state(id, "workspace")
-					-- create new workspace with previous name
-					-- Source: https://github.com/MLFlexer/resurrect.wezterm/issues/73#issuecomment-2572924018
-					win:perform_action(
-						wezterm.action.SwitchToWorkspace({
-							name = state.workspace,
-						}),
-						pane
-					)
-					resurrect.workspace_state.restore_workspace(state, opts)
-				elseif type == "window" then
-					local state = resurrect.state_manager.load_state(id, "window")
-					resurrect.window_state.restore_window(pane:window(), state, opts)
-				elseif type == "tab" then
-					local state = resurrect.state_manager.load_state(id, "tab")
-					resurrect.tab_state.restore_tab(pane:tab(), state, opts)
+				if item_type ~= "workspace" then
+					notify(win, "resurrect.wezterm", "Only workspace restores are enabled", 3500)
+					return
 				end
-			end)
+
+				local state = resurrect.state_manager.load_state(state_id, "workspace")
+				if not state or not state.workspace or not state.window_states then
+					local msg = "Invalid workspace state: " .. tostring(state_id)
+					wezterm.log_error("resurrect.wezterm: " .. msg)
+					notify(win, "resurrect.wezterm", msg, 5000)
+					return
+				end
+
+				local window_state = state.window_states[1]
+				if not window_state then
+					local msg = "No windows found in workspace state: " .. tostring(state_id)
+					wezterm.log_error("resurrect.wezterm: " .. msg)
+					notify(win, "resurrect.wezterm", msg, 5000)
+					return
+				end
+
+				if #state.window_states > 1 then
+					notify(
+						win,
+						"resurrect.wezterm",
+						string.format("Workspace has %d windows; restoring first window only", #state.window_states),
+						4500
+					)
+				end
+
+				local opts = {
+					relative = true,
+					restore_text = true,
+					close_open_tabs = true,
+					close_open_panes = true,
+					on_pane_restore = resurrect.tab_state.default_on_pane_restore,
+				}
+
+				local ok, err = pcall(function()
+					-- Keep restore in the current window to avoid opening new GUI windows.
+					win:perform_action(wezterm.action.SwitchToWorkspace({ name = state.workspace }), pane)
+					resurrect.window_state.restore_window(pane:window(), window_state, opts)
+				end)
+
+				if ok then
+					notify(win, "resurrect.wezterm", "Workspace restored: " .. tostring(state.workspace), 4000)
+					wezterm.log_info("resurrect.wezterm: workspace restored: " .. tostring(state.workspace))
+					return
+				end
+
+				local msg = "Failed to restore workspace: " .. tostring(err)
+				wezterm.log_error("resurrect.wezterm: " .. msg)
+				notify(win, "resurrect.wezterm", msg, 6000)
+			end, {
+				ignore_windows = true,
+				ignore_tabs = true,
+			})
 		end),
 	},
 	-- update all plugins
