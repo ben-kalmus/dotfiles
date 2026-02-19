@@ -182,6 +182,10 @@ local browserApps = {
 	"org.mozilla.firefox",
 }
 
+local finderApps = {
+	"com.apple.finder",
+}
+
 -- Key binding definitions
 local keyBindings = {
 	-- source: key to rebind. this is sent to Mac OS. If empty, no events are fired. This is useful to disable a key.
@@ -325,6 +329,24 @@ local keyBindings = {
 		description = "Delete by one word",
 		exceptions = terminalApps,
 		allowModifiers = true,
+	},
+	{
+		source = { modifiers = { "cmd" }, key = "delete" },
+		target = { modifiers = {}, key = "delete" },
+		description = "Finder: Backspace moves file to Trash",
+		only = finderApps,
+	},
+	{
+		source = { modifiers = { "cmd" }, key = "delete" },
+		target = { modifiers = {}, key = "forwarddelete" },
+		description = "Finder: ForwardDelete moves file to Trash",
+		only = finderApps,
+	},
+	{
+		source = { modifiers = { "cmd" }, key = "delete" },
+		target = { modifiers = { "fn" }, key = "delete" },
+		description = "Finder: Fn+Delete moves file to Trash",
+		only = finderApps,
 	},
 	-- {
 	-- 	-- TODO: allow ability to remap a modifier key alone
