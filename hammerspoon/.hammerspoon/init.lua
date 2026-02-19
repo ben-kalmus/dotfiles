@@ -163,10 +163,11 @@ watcher:start()
 
 -- Default values for optional fields
 local defaultValues = {
-	allowModifiers = false, -- allows you to hold other modifiers (like Shift) while remapping
+	inheritExtraModifiers = false, -- keep extra held modifiers (like Shift) when emitting
 	enabled = true,
 	debugHelper = false,
-	exceptions = {}, -- list of app bundle IDs to exclude from remapping
+	exceptApps = {}, -- list of app bundle IDs to exclude from remapping
+	onlyApps = {}, -- list of app bundle IDs to exclusively include
 	passthrough = false, -- sends the activated keypress as well
 }
 
@@ -188,187 +189,188 @@ local finderApps = {
 
 -- Key binding definitions
 local keyBindings = {
-	-- source: key to rebind. this is sent to Mac OS. If empty, no events are fired. This is useful to disable a key.
-	-- target: key to activate on. `Source` is rebound to `Target`.
+	-- trigger: key combo to listen for.
+	-- emit: key combo to synthesize. If empty, the trigger is consumed (disabled).
 	-- description: for debug purposes
-	-- exceptions: App to exclude from remapping (by bundle ID), to see bundle ID enter this into Hammerspoon console and alt tab into it:
+	-- exceptApps: Apps to exclude from remapping (by bundle ID), to see bundle ID enter this into Hammerspoon console and alt tab into it:
 	--             hs.timer.doAfter(3, function () print(hs.application.frontmostApplication():bundleID()) end)
 	--
-	-- only: List of Apps (by bundle ID) to only enable this keybinding for.
+	-- onlyApps: List of apps (by bundle ID) to only enable this keybinding for.
+	-- inheritExtraModifiers: if true, passes through extra held modifiers not in trigger.
 	-- enabled: keybind ative
 	-- passthrough: sends the activated keypress as well
 	{
-		source = { modifiers = { "cmd" }, key = "c" },
-		target = { modifiers = { "ctrl" }, key = "c" },
+		emit = { modifiers = { "cmd" }, key = "c" },
+		trigger = { modifiers = { "ctrl" }, key = "c" },
 		description = "Copy",
-		exceptions = terminalApps,
-		allowModifiers = true,
+		exceptApps = terminalApps,
+		inheritExtraModifiers = true,
 	},
 	{
-		source = { modifiers = { "cmd" }, key = "v" },
-		target = { modifiers = { "ctrl" }, key = "v" },
+		emit = { modifiers = { "cmd" }, key = "v" },
+		trigger = { modifiers = { "ctrl" }, key = "v" },
 		description = "Paste",
-		exceptions = terminalApps,
-		allowModifiers = true,
+		exceptApps = terminalApps,
+		inheritExtraModifiers = true,
 	},
 	{
-		source = { modifiers = { "cmd" }, key = "b" },
-		target = { modifiers = { "ctrl" }, key = "b" },
+		emit = { modifiers = { "cmd" }, key = "b" },
+		trigger = { modifiers = { "ctrl" }, key = "b" },
 		description = "Bold",
-		exceptions = terminalApps,
+		exceptApps = terminalApps,
 	},
 	{
-		source = { modifiers = { "cmd" }, key = "i" },
-		target = { modifiers = { "ctrl" }, key = "i" },
+		emit = { modifiers = { "cmd" }, key = "i" },
+		trigger = { modifiers = { "ctrl" }, key = "i" },
 		description = "Italic",
-		exceptions = terminalApps,
+		exceptApps = terminalApps,
 	},
 	{
-		source = { modifiers = { "cmd" }, key = "x" },
-		target = { modifiers = { "ctrl" }, key = "x" },
+		emit = { modifiers = { "cmd" }, key = "x" },
+		trigger = { modifiers = { "ctrl" }, key = "x" },
 		description = "Cut",
-		exceptions = terminalApps,
+		exceptApps = terminalApps,
 	},
 	{
 		-- collides with ctrl-a which moves cursor to start
 		enabled = true,
-		source = { modifiers = { "cmd" }, key = "a" },
-		target = { modifiers = { "ctrl" }, key = "a" },
+		emit = { modifiers = { "cmd" }, key = "a" },
+		trigger = { modifiers = { "ctrl" }, key = "a" },
 		description = "Select All",
-		exceptions = terminalApps,
+		exceptApps = terminalApps,
 	},
 	{
-		source = { modifiers = { "cmd" }, key = "z" },
-		target = { modifiers = { "ctrl" }, key = "z" },
+		emit = { modifiers = { "cmd" }, key = "z" },
+		trigger = { modifiers = { "ctrl" }, key = "z" },
 		description = "Undo",
-		exceptions = terminalApps,
+		exceptApps = terminalApps,
 	},
 	{
-		source = { modifiers = { "shift", "cmd" }, key = "z" },
-		target = { modifiers = { "shift", "ctrl" }, key = "z" },
+		emit = { modifiers = { "shift", "cmd" }, key = "z" },
+		trigger = { modifiers = { "shift", "ctrl" }, key = "z" },
 		description = "Redo (z key)",
-		exceptions = terminalApps,
+		exceptApps = terminalApps,
 	},
 	{
-		source = { modifiers = { "cmd", "shift" }, key = "z" },
-		target = { modifiers = { "ctrl" }, key = "y" },
+		emit = { modifiers = { "cmd", "shift" }, key = "z" },
+		trigger = { modifiers = { "ctrl" }, key = "y" },
 		description = "Redo",
-		exceptions = terminalApps,
+		exceptApps = terminalApps,
 	},
 	{
-		source = { modifiers = { "cmd" }, key = "r" },
-		target = { modifiers = { "ctrl" }, key = "r" },
+		emit = { modifiers = { "cmd" }, key = "r" },
+		trigger = { modifiers = { "ctrl" }, key = "r" },
 		description = "Refresh / Reload",
-		exceptions = terminalApps,
-		allowModifiers = true,
+		exceptApps = terminalApps,
+		inheritExtraModifiers = true,
 	},
 	{
-		source = { modifiers = { "cmd" }, key = "p" },
-		target = { modifiers = { "ctrl" }, key = "p" },
+		emit = { modifiers = { "cmd" }, key = "p" },
+		trigger = { modifiers = { "ctrl" }, key = "p" },
 		description = "Command Pallette / Print",
-		exceptions = terminalApps,
-		allowModifiers = true,
+		exceptApps = terminalApps,
+		inheritExtraModifiers = true,
 	},
 	{
-		source = { modifiers = { "cmd" }, key = "f" },
-		target = { modifiers = { "ctrl" }, key = "f" },
+		emit = { modifiers = { "cmd" }, key = "f" },
+		trigger = { modifiers = { "ctrl" }, key = "f" },
 		description = "Find",
-		exceptions = terminalApps,
+		exceptApps = terminalApps,
 	},
 	{
-		source = { modifiers = { "cmd" }, key = "left" },
-		target = { key = "home" },
+		emit = { modifiers = { "cmd" }, key = "left" },
+		trigger = { key = "home" },
 		description = "HOME key",
-		exceptions = terminalApps,
-		allowModifiers = true,
+		exceptApps = terminalApps,
+		inheritExtraModifiers = true,
 	},
 	{
-		source = { modifiers = { "cmd" }, key = "s" },
-		target = { modifiers = { "ctrl" }, key = "s" },
+		emit = { modifiers = { "cmd" }, key = "s" },
+		trigger = { modifiers = { "ctrl" }, key = "s" },
 		description = "Save",
-		exceptions = terminalApps,
-		allowModifiers = true,
+		exceptApps = terminalApps,
+		inheritExtraModifiers = true,
 	},
 	{
-		source = { modifiers = { "cmd" }, key = "right" },
-		target = { key = "end" },
+		emit = { modifiers = { "cmd" }, key = "right" },
+		trigger = { key = "end" },
 		description = "END key",
-		exceptions = terminalApps,
-		allowModifiers = true,
+		exceptApps = terminalApps,
+		inheritExtraModifiers = true,
 	},
 	{
-		source = { modifiers = { "cmd" }, key = "t" },
-		target = { modifiers = { "ctrl" }, key = "t" },
-		allowModifiers = true,
-		only = { "com.google.Chrome", "org.mozilla.firefox" },
+		emit = { modifiers = { "cmd" }, key = "t" },
+		trigger = { modifiers = { "ctrl" }, key = "t" },
+		inheritExtraModifiers = true,
+		onlyApps = { "com.google.Chrome", "org.mozilla.firefox" },
 		description = "New Tab",
-		-- exceptions = terminalExceptions,
+		-- exceptApps = terminalExceptions,
 	},
 	{
-		source = { modifiers = {}, key = "escape" },
-		target = { modifiers = {}, key = "capslock" },
+		emit = { modifiers = {}, key = "escape" },
+		trigger = { modifiers = {}, key = "capslock" },
 		description = "Capslock to ESC",
 	},
 	{
-		source = { modifiers = { "fn", "alt" }, key = "left" },
-		target = { modifiers = { "fn", "ctrl" }, key = "left" },
+		emit = { modifiers = { "fn", "alt" }, key = "left" },
+		trigger = { modifiers = { "fn", "ctrl" }, key = "left" },
 		description = "Move cursor left by word",
-		exceptions = terminalApps,
-		allowModifiers = true,
+		exceptApps = terminalApps,
+		inheritExtraModifiers = true,
 	},
 	{
-		source = { modifiers = { "fn", "alt" }, key = "right" },
-		target = { modifiers = { "fn", "ctrl" }, key = "right" },
+		emit = { modifiers = { "fn", "alt" }, key = "right" },
+		trigger = { modifiers = { "fn", "ctrl" }, key = "right" },
 		description = "Move cursor right by word",
-		exceptions = terminalApps,
-		allowModifiers = true,
+		exceptApps = terminalApps,
+		inheritExtraModifiers = true,
 	},
 	{
-		source = { modifiers = { "alt" }, key = "delete" },
-		target = { modifiers = { "ctrl" }, key = "delete" },
+		emit = { modifiers = { "alt" }, key = "delete" },
+		trigger = { modifiers = { "ctrl" }, key = "delete" },
 		description = "Delete by one word",
-		exceptions = terminalApps,
-		allowModifiers = true,
+		exceptApps = terminalApps,
+		inheritExtraModifiers = true,
 	},
 	{
-		source = { modifiers = { "cmd" }, key = "delete" },
-		target = { modifiers = {}, key = "delete" },
+		emit = { modifiers = { "cmd" }, key = "delete" },
+		trigger = { modifiers = {}, key = "delete" },
 		description = "Finder: Backspace moves file to Trash",
-		only = finderApps,
+		onlyApps = finderApps,
 	},
 	{
-		source = { modifiers = { "cmd" }, key = "delete" },
-		target = { modifiers = {}, key = "forwarddelete" },
+		emit = { modifiers = { "cmd" }, key = "delete" },
+		trigger = { modifiers = {}, key = "forwarddelete" },
 		description = "Finder: ForwardDelete moves file to Trash",
-		only = finderApps,
+		onlyApps = finderApps,
 	},
 	{
-		source = { modifiers = { "cmd" }, key = "delete" },
-		target = { modifiers = { "fn" }, key = "delete" },
+		emit = { modifiers = { "cmd" }, key = "delete" },
+		trigger = { modifiers = { "fn" }, key = "delete" },
 		description = "Finder: Fn+Delete moves file to Trash",
-		only = finderApps,
+		onlyApps = finderApps,
 	},
 	-- {
 	-- 	-- TODO: allow ability to remap a modifier key alone
 	-- 	-- Useful in vim where ALT/OPT is swapped.
-	-- 	source = { modifiers = { "alt" } },
-	-- 	target = { modifiers = { "cmd" } },
+	-- 	emit = { modifiers = { "alt" } },
+	-- 	trigger = { modifiers = { "cmd" } },
 	-- 	description = "ALT as OPT",
-	-- 	only = terminalApps,
+	-- 	onlyApps = terminalApps,
 	-- },
 	{
 		-- All too easy to accidentally kill a tab or window.
-		target = { modifiers = { "ctrl" }, key = "w" },
+		trigger = { modifiers = { "ctrl" }, key = "w" },
 		description = "Disable Close tab/window",
-		only = browserApps,
+		onlyApps = browserApps,
 	},
 	{
-		target = { modifiers = { "cmd" }, key = "h" },
+		trigger = { modifiers = { "cmd" }, key = "h" },
 		debugHelper = true,
 		description = "Disable CMD Hide",
 	},
 	{
-		target = { modifiers = { "alt", "cmd" }, key = "h" },
+		trigger = { modifiers = { "alt", "cmd" }, key = "h" },
 		debugHelper = true,
 		description = "Disable CMD+OPT Hide",
 	},
@@ -384,9 +386,9 @@ local function applyDefaults(binding)
 	return binding
 end
 
--- Helper function to check if current app is in exceptions list
-local function isAppInExceptions(exceptions)
-	if not exceptions or #exceptions == 0 then
+-- Helper function to check if current app is in a given app list
+local function isFrontmostAppInList(appList)
+	if not appList or #appList == 0 then
 		return false
 	end
 
@@ -396,35 +398,34 @@ local function isAppInExceptions(exceptions)
 	end
 
 	local bundleID = currentApp:bundleID()
-	for _, exceptionBundle in ipairs(exceptions) do
-		if bundleID == exceptionBundle then
+	for _, appBundleID in ipairs(appList) do
+		if bundleID == appBundleID then
 			return true
 		end
 	end
 	return false
 end
 
--- Helper function to merge modifiers if allowModifiers is enabled
-local function getMergedModifiers(targetModifiers, sourceModifiers, currentFlags, allowExtra)
-	targetModifiers = targetModifiers or {}
-	sourceModifiers = sourceModifiers or {}
+-- Helper function to merge emitted modifiers with additional held modifiers
+local function getMergedModifiers(triggerModifiers, emitModifiers, currentFlags, inheritExtraModifiers)
+	triggerModifiers = triggerModifiers or {}
+	emitModifiers = emitModifiers or {}
 	currentFlags = currentFlags or {}
 
-	if not allowExtra then
-		return sourceModifiers
+	if not inheritExtraModifiers then
+		return emitModifiers
 	end
 
 	local mergedModifiers = {}
-	-- Start with modifiers we are supposed to append
-	for _, mod in ipairs(sourceModifiers) do
+	-- Start with modifiers configured in the emitted key stroke
+	for _, mod in ipairs(emitModifiers) do
 		table.insert(mergedModifiers, mod)
 	end
 
-	-- Add additional modifiers that weren't in source but are currently pressed
+	-- Add additional held modifiers that weren't part of the trigger combo
 	local additionalMods = { "shift", "alt", "cmd", "ctrl", "fn" }
 	for _, mod in ipairs(additionalMods) do
-		-- If this modifier is currently pressed but not in target, add it
-		if currentFlags[mod] and not hs.fnutils.contains(targetModifiers, mod) then
+		if currentFlags[mod] and not hs.fnutils.contains(triggerModifiers, mod) then
 			table.insert(mergedModifiers, mod)
 		end
 	end
@@ -438,11 +439,15 @@ local function showDebugInfo(binding, action, additionalInfo)
 		return
 	end
 
+	local trigger = binding.trigger or {}
+	local triggerMods = trigger.modifiers or {}
+	local triggerCombo = ((#triggerMods > 0) and (table.concat(triggerMods, "+") .. "+") or "") .. tostring(trigger.key or "?")
+
 	local message = string.format(
 		"[%s] %s | %s",
 		action,
 		binding.description,
-		table.concat(binding.target.modifiers, "+") .. "+" .. binding.target.key
+		triggerCombo
 	)
 	if additionalInfo then
 		message = message .. " | " .. additionalInfo
@@ -542,11 +547,11 @@ local function newBinding(binding)
 	tap = hs.eventtap.new({ hs.eventtap.event.types.keyDown, hs.eventtap.event.types.flagsChanged }, function(e)
 		local flags = e:getFlags()
 		local eventType = e:getType()
-		local wantCode = keycodeFor(binding.target.key)
-		local targetIsModifier = isModifierKey(binding.target.key)
+		local wantCode = keycodeFor(binding.trigger.key)
+		local triggerIsModifier = isModifierKey(binding.trigger.key)
 
 		-- Modifier keys (like capslock) emit flagsChanged, not keyDown.
-		if targetIsModifier then
+		if triggerIsModifier then
 			if eventType ~= hs.eventtap.event.types.flagsChanged then
 				return false
 			end
@@ -559,34 +564,34 @@ local function newBinding(binding)
 		if e:getKeyCode() ~= wantCode then
 			return false
 		end
-		if not flagsMatchExact(flags, binding.target.modifiers, binding.allowModifiers) then
+		if not flagsMatchExact(flags, binding.trigger.modifiers, binding.inheritExtraModifiers) then
 			return false
 		end
 
-		-- only execute in the specified apps.
-		if binding.only and #binding.only > 0 then
-			if not hs.fnutils.contains(binding.only, hs.application.frontmostApplication():bundleID()) then
+		-- Only execute in the specified apps.
+		if binding.onlyApps and #binding.onlyApps > 0 then
+			if not hs.fnutils.contains(binding.onlyApps, hs.application.frontmostApplication():bundleID()) then
 				showDebugInfo(binding, "SKIPPED: app not included", hs.application.frontmostApplication():bundleID())
 				return false
 			end
 		end
 
-		-- Exceptions: let the original go through unchanged
-		if isAppInExceptions(binding.exceptions) then
+		-- exceptApps: let the original go through unchanged
+		if isFrontmostAppInList(binding.exceptApps) then
 			showDebugInfo(binding, "PASSTHROUGH (exception)", "eventtap")
 			return false -- don't consume; system/app receives ctrl+arrow
 		end
 
 		-- Removes key press:
-		if not binding.source or not binding.source.key then
+		if not binding.emit or not binding.emit.key then
 			showDebugInfo(binding, "SINK", "Key remapped to nothing")
 			return true -- consume original
 		end
 
-		local modsToSend = binding.source.modifiers
+		local modsToSend = binding.emit.modifiers or {}
 		-- Allow additional modifiers if they are held down
-		if binding.allowModifiers then
-			modsToSend = getMergedModifiers(binding.target.modifiers, binding.source.modifiers, flags, true)
+		if binding.inheritExtraModifiers then
+			modsToSend = getMergedModifiers(binding.trigger.modifiers, binding.emit.modifiers, flags, true)
 			showDebugInfo(binding, "ALLOW extra modifiers", "extra: " .. table.concat(modsToSend, "+"))
 		end
 
@@ -595,11 +600,11 @@ local function newBinding(binding)
 		tap:stop() -- prevents recursive triggering
 
 		-- Caps Lock toggles OS state even when consumed; force it back off.
-		if binding.target.key == "capslock" then
+		if binding.trigger.key == "capslock" then
 			hs.hid.capslock.set(false)
 		end
 
-		pushKey(modsToSend, binding.source.key, 0)
+		pushKey(modsToSend, binding.emit.key, 0)
 
 		-- reenable after key press
 		hs.timer.doAfter(0.001, function()
