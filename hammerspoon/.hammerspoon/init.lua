@@ -406,8 +406,12 @@ end
 
 -- Helper function to merge modifiers if allowModifiers is enabled
 local function getMergedModifiers(targetModifiers, sourceModifiers, currentFlags, allowExtra)
+	targetModifiers = targetModifiers or {}
+	sourceModifiers = sourceModifiers or {}
+	currentFlags = currentFlags or {}
+
 	if not allowExtra then
-		return targetModifiers
+		return sourceModifiers
 	end
 
 	local mergedModifiers = {}
