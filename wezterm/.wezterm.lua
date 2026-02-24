@@ -227,7 +227,7 @@ config.window_padding = {
 -- remove ctrl - and ctrl = which resize window
 
 -- LEADER key
-config.leader = { key = "Space", mods = "SHIFT", timeout_milliseconds = 1000 }
+config.leader = { key = "Space", mods = "SHIFT|CTRL", timeout_milliseconds = 1000 }
 
 config.keys = {
 	{
@@ -243,6 +243,56 @@ config.keys = {
 	{
 		key = "=",
 		mods = "CTRL",
+		action = wezterm.action.DisableDefaultAssignment,
+	},
+	{
+		key = "phys:Space",
+		mods = "SHIFT|CTRL",
+		action = wezterm.action.DisableDefaultAssignment,
+	},
+	{
+		key = "1",
+		mods = "CMD",
+		action = wezterm.action.DisableDefaultAssignment,
+	},
+	{
+		key = "2",
+		mods = "CMD",
+		action = wezterm.action.DisableDefaultAssignment,
+	},
+	{
+		key = "3",
+		mods = "CMD",
+		action = wezterm.action.DisableDefaultAssignment,
+	},
+	{
+		key = "4",
+		mods = "CMD",
+		action = wezterm.action.DisableDefaultAssignment,
+	},
+	{
+		key = "5",
+		mods = "CMD",
+		action = wezterm.action.DisableDefaultAssignment,
+	},
+	{
+		key = "6",
+		mods = "CMD",
+		action = wezterm.action.DisableDefaultAssignment,
+	},
+	{
+		key = "7",
+		mods = "CMD",
+		action = wezterm.action.DisableDefaultAssignment,
+	},
+	{
+		key = "8",
+		mods = "CMD",
+		action = wezterm.action.DisableDefaultAssignment,
+	},
+	{
+		key = "9",
+		mods = "CMD",
 		action = wezterm.action.DisableDefaultAssignment,
 	},
 	-- tmux-like navigation
