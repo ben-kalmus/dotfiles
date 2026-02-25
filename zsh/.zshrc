@@ -142,6 +142,7 @@ bindkey "^[[B" history-beginning-search-forward
 [ -s "$HOME/.wezterm-shel.sh" ] && \. "$HOME/.wezterm-shel.sh"
 
 source $HOME/.config/zsh/scripts/search-replace.sh
+source $HOME/.config/zsh/scripts/nvim-kill.sh
 
 source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
@@ -151,6 +152,9 @@ autoload -U compinit && compinit
 
 # Set up fzf key bindings and fuzzy completion
 source <(fzf --zsh)
+
+# Source any environmental configuration that I should not share on github.
+source .env
 
 # The following lines have been added by Docker Desktop to enable Docker CLI completions.
 fpath=(/Users/ben.kalmus/.docker/completions $fpath)
