@@ -154,7 +154,7 @@ autoload -U compinit && compinit
 source <(fzf --zsh)
 
 # Source any environmental configuration that I should not share on github.
-source .env
+source ~/.config/zsh/.env
 
 # The following lines have been added by Docker Desktop to enable Docker CLI completions.
 fpath=(/Users/ben.kalmus/.docker/completions $fpath)
