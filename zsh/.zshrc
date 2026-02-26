@@ -14,6 +14,9 @@ export ZSH="$HOME/.oh-my-zsh"
 export GOPRIVATE="github.com/algolia/*"
 export VAULT_ADDR=https://vault.algolia.net
 
+# Allow opencode to search web
+export OPENCODE_ENABLE_EXA=1
+
 ## Set name of the theme to load --- if set to "random", it will
 # load a random theme each time Oh My Zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
