@@ -307,11 +307,6 @@ local keyBindings = {
 		-- exceptApps = terminalExceptions,
 	},
 	{
-		emit = { modifiers = {}, key = "escape" },
-		trigger = { modifiers = {}, key = "capslock" },
-		description = "Capslock to ESC",
-	},
-	{
 		emit = { modifiers = { "fn", "alt" }, key = "left" },
 		trigger = { modifiers = { "fn", "ctrl" }, key = "left" },
 		description = "Move cursor left by word",
@@ -441,14 +436,10 @@ local function showDebugInfo(binding, action, additionalInfo)
 
 	local trigger = binding.trigger or {}
 	local triggerMods = trigger.modifiers or {}
-	local triggerCombo = ((#triggerMods > 0) and (table.concat(triggerMods, "+") .. "+") or "") .. tostring(trigger.key or "?")
+	local triggerCombo = ((#triggerMods > 0) and (table.concat(triggerMods, "+") .. "+") or "")
+		.. tostring(trigger.key or "?")
 
-	local message = string.format(
-		"[%s] %s | %s",
-		action,
-		binding.description,
-		triggerCombo
-	)
+	local message = string.format("[%s] %s | %s", action, binding.description, triggerCombo)
 	if additionalInfo then
 		message = message .. " | " .. additionalInfo
 	end
