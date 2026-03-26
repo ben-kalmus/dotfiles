@@ -158,6 +158,39 @@ end)
 watcher:start()
 
 -- ================================================================================================
+-- External display: keep Mac awake while an external monitor is connected (works on battery)
+-- ================================================================================================
+
+local keepAwakeTask = nil
+
+local function startKeepAwake()
+	if keepAwakeTask then return end
+	keepAwakeTask = hs.task.new("/usr/bin/caffeinate", nil, { "-dimsu" })
+	keepAwakeTask:start()
+	print("External display detected: starting caffeinate -dimsu")
+end
+
+local function stopKeepAwake()
+	if not keepAwakeTask then return end
+	keepAwakeTask:terminate()
+	keepAwakeTask = nil
+	print("No external display: stopped caffeinate")
+end
+
+local function reconcileKeepAwake()
+	if #hs.screen.allScreens() > 1 then
+		startKeepAwake()
+	else
+		stopKeepAwake()
+	end
+end
+
+reconcileKeepAwake()
+externalDisplayScreenWatcher = hs.screen.watcher.new(reconcileKeepAwake)
+externalDisplayScreenWatcher:start()
+externalDisplayTimer = hs.timer.doEvery(5, reconcileKeepAwake)
+
+-- ================================================================================================
 -- Mac to Linux key binding configuration
 -- ================================================================================================
 
