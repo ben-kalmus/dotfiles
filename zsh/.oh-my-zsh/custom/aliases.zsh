@@ -112,3 +112,40 @@ function minimetis-kill-pod() {
   echo "Deleting pods with name pattern: '(${podName})-[\\w\\d-]*\\w' in namespace '${namespace}'"
   kubectl get pod -n ${namespace}  --no-headers -o custom-columns=":metadata.name" | grep -v 'keys' | grep -Eo "^(${podName})-[a-zA-Z0-9\-]*\w" | xargs kubectl delete pod -n ${namespace}
 }
+
+alias llama-restart='launchctl unload ~/Library/LaunchAgents/homebrew.mxcl.llama-server.plist && launchctl load ~/Library/LaunchAgents/homebrew.mxcl.llama-server.plist'
+
+function kill-by-path() {
+    if [[ -z "$1" ]]; then
+        echo "Usage: kill-by-path <process name> <path>"
+        return 1
+    fi
+    if [[ -z "$2" ]]; then
+        echo "Usage: kill-by-path <process name> <path>"
+        return 1
+    fi
+
+    local name=$1
+    local path=$2
+
+    local target
+    target=$(/bin/realpath "$path" 2>/dev/null || echo "$HOME/$path")
+
+    local pids
+    pids=$(/usr/sbin/lsof -c "$name" 2>/dev/null | /usr/bin/awk '/cwd/ && $NF ~ target {print $2}' target="$target")
+
+    if [[ -z "$pids" ]]; then
+        echo "No $name processes found in: $target"
+        return 1
+    fi
+
+    echo "Proceed to kill? [y/n]" 
+    echo ${pids}
+
+    read -r proceed 
+
+    if [[ $proceed -eq "y" ]]; then
+        echo "Killing $name processes in $target: $pids"
+        echo "$pids" | /usr/bin/xargs /bin/kill
+    fi
+}
