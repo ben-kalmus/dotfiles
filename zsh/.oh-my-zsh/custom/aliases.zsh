@@ -5,6 +5,7 @@ function gaa() {
         git add $(git status --short | grep -E '^\ ?M+' | awk -F ' ' '{print $2}')
     fi
 }
+alias lg='lazygit'
 alias gb='git branch'
 alias gd='git diff'
 alias gcl='git clone'
