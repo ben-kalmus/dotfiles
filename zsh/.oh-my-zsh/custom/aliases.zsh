@@ -103,6 +103,9 @@ alias sshagent='eval $(ssh-agent) && ssh-add'
 alias tnw='tmux new-window'
 alias tkw='tmux kill-window'
 
+# ai
+alias claude="claude --allow-dangerously-skip-permissions"
+
 function minimetis-kill-pod() {
   local podName=${1:-"api"}
   local namespace=${2:-"minimetis"}
