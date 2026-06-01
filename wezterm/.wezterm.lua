@@ -207,7 +207,7 @@ config.initial_cols = 120
 config.initial_rows = 48
 
 -- or, changing the font size and color scheme.
-config.font_size = 13
+config.font_size = 14
 config.font = wezterm.font("Fira Code")
 config.color_scheme = "Tokyo Night Moon"
 config.window_background_opacity = 1
