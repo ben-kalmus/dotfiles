@@ -99,6 +99,10 @@ function format-json() {
 }
 alias prettyxml='xmllint --format -'
 
+# python
+# activate venv
+alias venv='source .venv/bin/activate'
+
 # ssh
 # alias ssh='ssh -o StrictHostKeyChecking=no'
 alias sshagent='eval $(ssh-agent) && ssh-add'
