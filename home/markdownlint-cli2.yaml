@@ -1,0 +1,82 @@
+# markdownlint-cli2 configuration
+# Docs: https://github.com/DavidAnson/markdownlint-cli2
+# Rule reference: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+
+# Rule configuration passed through to markdownlint.
+config:
+  # Enable all rules by default, then override specific ones below.
+  default: true
+
+  # MD003 - Heading style. Use ATX (#) headings consistently.
+  MD003:
+    style: atx
+
+  # MD004 - Unordered list style. Use dashes.
+  MD004:
+    style: dash
+
+  # MD007 - Unordered list indentation (2 spaces).
+  MD007:
+    indent: 2
+
+  # MD013 - Line length. Disabled: prose is written naturally without wrapping.
+  MD013: false
+
+  # MD024 - Multiple headings with the same content. Allow when nested under
+  # different parents (e.g. repeated "Notes" under different sections).
+  MD024:
+    siblings_only: true
+
+  # MD025 - Single H1 per document, derived from front matter title if present.
+  MD025:
+    front_matter_title: ""
+
+  # MD029 - Ordered list item prefix. Allow sequential numbering.
+  MD029:
+    style: ordered
+
+  # MD033 - Inline HTML. Allowed; many docs need raw HTML.
+  MD033: false
+
+  # MD034 - Bare URLs. Disabled to allow pasting plain links.
+  MD034: false
+
+  # MD036 - Emphasis used instead of a heading. Disabled.
+  MD036: false
+
+  # MD041 - First line in file should be a top-level heading. Disabled to allow
+  # front matter, badges, or HTML comments at the top.
+  MD041: false
+
+  # MD046 - Code block style. Require fenced code blocks.
+  MD046:
+    style: fenced
+
+  # MD048 - Code fence style. Use backticks.
+  MD048:
+    style: backtick
+
+  # MD049 - Emphasis style. Use underscores.
+  MD049:
+    style: underscore
+
+  # MD050 - Strong style. Use asterisks.
+  MD050:
+    style: asterisk
+
+# Glob patterns for files to lint when none are passed on the command line.
+globs:
+  - "**/*.md"
+
+# Patterns to ignore.
+ignores:
+  - "node_modules"
+  - ".git"
+  - "CHANGELOG.md"
+
+# Honor .gitignore when expanding globs.
+gitignore: true
+
+# Do not fail on the first error; report everything.
+# (Set to true in CI if you prefer a hard stop.)
+# failOnErrors: true

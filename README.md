@@ -11,4 +11,5 @@ stow zsh
 stow tmux
 stow git
 stow wezterm
+stow home
 ```
