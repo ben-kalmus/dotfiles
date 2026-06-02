@@ -103,6 +103,10 @@ alias prettyxml='xmllint --format -'
 # activate venv
 alias venv='source .venv/bin/activate'
 
+# golang 
+# linter shortcut for a static version used in metis ci
+alias glint='golangci-lint-2.11.4'
+
 # ssh
 # alias ssh='ssh -o StrictHostKeyChecking=no'
 alias sshagent='eval $(ssh-agent) && ssh-add'
