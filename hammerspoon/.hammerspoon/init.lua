@@ -134,61 +134,134 @@ function contains(list, value)
 	return false
 end
 
--- Screen lock watcher
--- Detects lock/unlock and enable/disable Caffeine accordingly
-watcher = hs.caffeinate.watcher.new(function(eventType)
-	local activateEvents = {
-		hs.caffeinate.watcher.screensDidUnlock,
-		hs.caffeinate.watcher.screensDidWake,
-		hs.caffeinate.watcher.systemDidWake,
-	}
-	local deactivateEvents = {
-		hs.caffeinate.watcher.screensDidLock,
-		hs.caffeinate.watcher.systemWillSleep,
-	}
-	if contains(activateEvents, eventType) then
-		print("Activated Caffeine on event " .. eventType)
-		spoon.Caffeine:setState(true)
-	elseif contains(deactivateEvents, eventType) then
-		print("Deactivated Caffeine on event " .. eventType)
-		spoon.Caffeine:setState(false)
-	end
-end)
-
-watcher:start()
-
 -- ================================================================================================
--- External display: keep Mac awake while an external monitor is connected (works on battery)
+-- Screen-awake management: Caffeine spoon + external-display caffeinate task, both released on lock
 -- ================================================================================================
+
+-- Dedicated logger for screen-awake logic. Bump level to 'debug' in the
+-- Hammerspoon console to see periodic reconcile decisions: caffeineLog.setLogLevel('debug')
+local caffeineLog = hs.logger.new("caffeine", "info")
 
 local keepAwakeTask = nil
+
+-- Authoritative lock state, tracked from caffeinate watcher lock/unlock events.
+-- Polling hs.caffeinate.sessionProperties() proved unreliable with an external
+-- display attached (CGSSessionScreenIsLocked stayed false right after locking),
+-- so we trust the events instead. Assume unlocked at config load.
+local screenLocked = false
+
+-- Reverse map of hs.caffeinate.watcher event numbers -> names, for readable logs
+local watcherEventNames = {}
+for name, value in pairs(hs.caffeinate.watcher) do
+	if type(value) == "number" then
+		watcherEventNames[value] = name
+	end
+end
+local function eventName(eventType)
+	return (watcherEventNames[eventType] or "unknown") .. " (" .. tostring(eventType) .. ")"
+end
+
+-- Heuristic: built-in panel names. Adjust if your built-in display reports a different name.
+local function isBuiltinScreen(screen)
+	local name = screen:name() or ""
+	return name:match("Built%-in") ~= nil or name == "Color LCD"
+end
+
+-- True if any non-built-in display is attached (works in clamshell, where the built-in is absent)
+local function hasExternalDisplay()
+	for _, s in ipairs(hs.screen.allScreens()) do
+		if not isBuiltinScreen(s) then
+			return true
+		end
+	end
+	return false
+end
+
+-- Log all attached screens and whether each is treated as built-in (debug only)
+local function logScreens()
+	for _, s in ipairs(hs.screen.allScreens()) do
+		local n = s:name() or "?"
+		caffeineLog.df("  screen: %q builtin=%s", n, tostring(isBuiltinScreen(s)))
+	end
+end
 
 local function startKeepAwake()
 	if keepAwakeTask then return end
 	keepAwakeTask = hs.task.new("/usr/bin/caffeinate", nil, { "-dimsu" })
 	keepAwakeTask:start()
-	print("External display detected: starting caffeinate -dimsu")
+	caffeineLog.i("External display + unlocked: started 'caffeinate -dimsu' (pid " .. tostring(keepAwakeTask:pid()) .. ")")
 end
 
 local function stopKeepAwake()
 	if not keepAwakeTask then return end
 	keepAwakeTask:terminate()
 	keepAwakeTask = nil
-	print("No external display: stopped caffeinate")
+	caffeineLog.i("Stopped 'caffeinate -dimsu' keepAwake task")
 end
 
-local function reconcileKeepAwake()
-	if #hs.screen.allScreens() > 1 then
-		startKeepAwake()
-	else
+-- Apply desired awake state for both the Caffeine spoon and the keepAwake task,
+-- based on the tracked lock state and whether an external display is attached.
+-- When locked: everything off so the display can sleep. When unlocked: Caffeine
+-- on, plus caffeinate -dimsu if an external display is attached.
+local function applyAwakeState()
+	local ext = hasExternalDisplay()
+	caffeineLog.df("apply: locked=%s externalDisplay=%s taskRunning=%s", tostring(screenLocked), tostring(ext), tostring(keepAwakeTask ~= nil))
+	logScreens()
+	if screenLocked then
+		spoon.Caffeine:setState(false)
 		stopKeepAwake()
+	else
+		spoon.Caffeine:setState(true)
+		if ext then
+			startKeepAwake()
+		else
+			stopKeepAwake()
+		end
 	end
 end
 
-reconcileKeepAwake()
-externalDisplayScreenWatcher = hs.screen.watcher.new(reconcileKeepAwake)
+-- Lock watcher: track lock state from events, then apply awake state.
+-- Lock/unlock events are authoritative for screenLocked. Wake events do NOT clear
+-- the lock flag (waking to a still-locked screen must stay asleep until unlock).
+watcher = hs.caffeinate.watcher.new(function(eventType)
+	local lockEvents = {
+		hs.caffeinate.watcher.screensDidLock,
+		hs.caffeinate.watcher.systemWillSleep,
+	}
+	local unlockEvents = {
+		hs.caffeinate.watcher.screensDidUnlock,
+	}
+	local wakeEvents = {
+		hs.caffeinate.watcher.screensDidWake,
+		hs.caffeinate.watcher.systemDidWake,
+	}
+	caffeineLog.i("caffeinate watcher event: " .. eventName(eventType))
+	if contains(lockEvents, eventType) then
+		screenLocked = true
+		caffeineLog.i("Locked: Caffeine off, keepAwake off")
+		applyAwakeState()
+	elseif contains(unlockEvents, eventType) then
+		screenLocked = false
+		caffeineLog.i("Unlocked: applying awake state")
+		applyAwakeState()
+	elseif contains(wakeEvents, eventType) then
+		caffeineLog.i("Wake (locked=" .. tostring(screenLocked) .. "): applying awake state")
+		applyAwakeState()
+	else
+		caffeineLog.df("Ignored event: " .. eventName(eventType))
+	end
+end)
+watcher:start()
+
+-- Initial apply + watch for display plug/unplug and a periodic safety net
+caffeineLog.i("Initialising screen-awake management")
+applyAwakeState()
+externalDisplayScreenWatcher = hs.screen.watcher.new(function()
+	caffeineLog.i("Screen layout changed, applying awake state")
+	applyAwakeState()
+end)
 externalDisplayScreenWatcher:start()
-externalDisplayTimer = hs.timer.doEvery(5, reconcileKeepAwake)
+externalDisplayTimer = hs.timer.doEvery(5, applyAwakeState)
 
 -- ================================================================================================
 -- Mac to Linux key binding configuration
