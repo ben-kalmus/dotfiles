@@ -76,51 +76,96 @@ hs.window.animationDuration = 0
 local okSpaces, spaces = pcall(require, "hs.spaces") -- optional
 
 -- Watch for app activation events, if an app is selected but is hidden or minimized, then unhide/unminimize it (alt tab fix).
+-- The focus/unminimize/space-move calls below can themselves trigger an
+-- `activated` event. Without protection that becomes a feedback loop: windows
+-- flash like rapid alt-tab, Hammerspoon's Lua thread saturates, the keybinding
+-- eventtaps starve and the keyboard goes unresponsive (mouse still moves).
+-- Two guards prevent this:
+--   1. handlingActivation: re-entrancy flag, ignores the activation our own
+--      focus() call generates.
+--   2. circuit breaker: if activations fire faster than ACTIVATION_LIMIT within
+--      ACTIVATION_WINDOW seconds, suspend all focus work for BREAKER_COOLDOWN
+--      seconds so a runaway loop self-heals instead of locking up the machine.
+local winLog = hs.logger.new("winwatch", "info")
+
+local ACTIVATION_WINDOW = 2 -- sliding window, seconds
+local ACTIVATION_LIMIT = 15 -- max activations within the window before tripping
+local BREAKER_COOLDOWN = 10 -- seconds to suspend focus work after a trip
+
+local handlingActivation = false
+local activationTimes = {} -- recent activation timestamps (secondsSinceEpoch)
+local breakerUntil = 0 -- focus work suspended until this timestamp
+
 appWindowWatcher = hs.application.watcher.new(function(appName, eventType, app)
 	if eventType ~= hs.application.watcher.activated then
 		return
 	end
-	app = app or hs.application.get(appName)
-	if not app then
+
+	local now = hs.timer.secondsSinceEpoch()
+
+	-- Circuit breaker active: skip all focus work until cooldown elapses.
+	if now < breakerUntil then
+		winLog.df("breaker active, ignoring activation: %s", tostring(appName))
 		return
 	end
 
-	-- If the app was hidden (⌘H), unhide it
-	if app:isHidden() then
-		app:unhide()
+	-- Record this activation and prune timestamps outside the sliding window.
+	table.insert(activationTimes, now)
+	while #activationTimes > 0 and (now - activationTimes[1]) > ACTIVATION_WINDOW do
+		table.remove(activationTimes, 1)
 	end
 
-	local wins = app:allWindows()
-	-- TODO: if app is not open, maybe we can launch it?
-	-- local hasVisible = false
-	-- for _, w in ipairs(wins) do
-	-- 	if w:isStandard() and w:isVisible() and not w:isMinimized() then
-	-- 		hasVisible = true
-	-- 		break
-	-- 	end
-	-- end
+	-- Too many activations too fast: trip the breaker and bail out.
+	if #activationTimes > ACTIVATION_LIMIT then
+		breakerUntil = now + BREAKER_COOLDOWN
+		activationTimes = {}
+		handlingActivation = false
+		winLog.w(string.format(
+			"activation storm detected (>%d in %ds), suspending focus work for %ds. last app: %s",
+			ACTIVATION_LIMIT, ACTIVATION_WINDOW, BREAKER_COOLDOWN, tostring(appName)))
+		hs.alert.show("Hammerspoon: activation storm, focus paused " .. BREAKER_COOLDOWN .. "s")
+		return
+	end
 
-	-- -- Ask the app to re-open a window if none are visible
-	-- if not hasVisible then
-	-- 	app:open()
-	-- end
+	-- Re-entrancy guard: ignore the activation our own focus() call triggers.
+	if handlingActivation then
+		return
+	end
+	handlingActivation = true
 
-	-- Unminimize anything that’s minimized; optionally move to current Space
-	local currentSpace = okSpaces and spaces.focusedSpace() or nil
-	for _, w in ipairs(wins) do
-		if w:isMinimized() then
-			w:unminimize()
-			if currentSpace then
-				spaces.moveWindowToSpace(w, currentSpace)
+	winLog.df("activated: %s", tostring(appName))
+
+	app = app or hs.application.get(appName)
+	if app then
+		-- If the app was hidden (⌘H), unhide it
+		if app:isHidden() then
+			app:unhide()
+		end
+
+		-- Unminimize anything that’s minimized; optionally move to current Space
+		local wins = app:allWindows()
+		local currentSpace = okSpaces and spaces.focusedSpace() or nil
+		for _, w in ipairs(wins) do
+			if w:isMinimized() then
+				w:unminimize()
+				if currentSpace then
+					spaces.moveWindowToSpace(w, currentSpace)
+				end
 			end
+		end
+
+		-- Ensure something sensible is focused, but only if it isn't already.
+		-- Re-focusing the already-focused window is what re-fires `activated`.
+		local target = app:mainWindow() or app:focusedWindow() or wins[1]
+		if target and target ~= hs.window.focusedWindow() then
+			target:focus()
 		end
 	end
 
-	-- Ensure something sensible is focused
-	local target = app:mainWindow() or app:focusedWindow() or wins[1]
-	if target then
-		target:focus()
-	end
+	-- Re-arm after a short cooldown so the self-triggered activation has passed.
+	hs.timer.doAfter(0.05, function()
+		handlingActivation = false
+	end)
 end)
 
 appWindowWatcher:start()
