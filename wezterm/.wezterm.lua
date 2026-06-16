@@ -208,7 +208,11 @@ config.initial_rows = 48
 
 -- or, changing the font size and color scheme.
 config.font_size = 14
-config.font = wezterm.font("Fira Code")
+-- config.font = wezterm.font("Fira Code")
+config.font = wezterm.font_with_fallback({
+	"Fira Code",
+	"MonaspiceAr Nerd Font",
+})
 config.color_scheme = "Tokyo Night Moon"
 config.window_background_opacity = 1
 
