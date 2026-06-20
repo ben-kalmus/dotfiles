@@ -8,6 +8,14 @@ package.path = table.concat({
 local inspect = require("inspect")
 
 -- ================================================================================================
+-- Feature flags
+-- ================================================================================================
+
+-- Toggle Bluetooth with screen lock state (off on lock, on on unlock).
+-- Set to false to disable. Requires blueutil (brew install blueutil).
+local MANAGE_BLUETOOTH = true
+
+-- ================================================================================================
 -- Auto reload config
 -- ================================================================================================
 
@@ -257,6 +265,28 @@ local function logScreens()
 	end
 end
 
+-- Path to blueutil. Adjust if installed elsewhere (Intel brew: /usr/local/bin/blueutil).
+local blueutilPath = "/opt/homebrew/bin/blueutil"
+
+-- Set Bluetooth power on/off via blueutil. No-op when the feature flag is off or
+-- blueutil is missing, so a missing binary never blocks the rest of awake handling.
+local function setBluetooth(on)
+	if not MANAGE_BLUETOOTH then return end
+	if not hs.fs.attributes(blueutilPath) then
+		caffeineLog.w("MANAGE_BLUETOOTH on but blueutil not found at " .. blueutilPath .. " (brew install blueutil)")
+		return
+	end
+	local arg = on and "1" or "0"
+	local task = hs.task.new(blueutilPath, function(exitCode, _, stdErr)
+		if exitCode ~= 0 then
+			caffeineLog.w("blueutil power " .. arg .. " failed (exit " .. tostring(exitCode) .. "): " .. tostring(stdErr))
+		else
+			caffeineLog.i("Bluetooth set to " .. (on and "on" or "off"))
+		end
+	end, { "--power", arg })
+	task:start()
+end
+
 local function startKeepAwake()
 	if keepAwakeTask then return end
 	keepAwakeTask = hs.task.new("/usr/bin/caffeinate", nil, { "-dimsu" })
@@ -282,8 +312,10 @@ local function applyAwakeState()
 	if screenLocked then
 		spoon.Caffeine:setState(false)
 		stopKeepAwake()
+		setBluetooth(false)
 	else
 		spoon.Caffeine:setState(true)
+		setBluetooth(true)
 		if ext then
 			startKeepAwake()
 		else
