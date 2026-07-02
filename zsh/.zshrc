@@ -164,6 +164,10 @@ fpath=(/Users/ben.kalmus/.docker/completions $fpath)
 autoload -Uz compinit
 compinit
 # End of Docker CLI completions
+# completion scripts in dir:
+fpath=(~/.config/zsh/completions $fpath)
+autoload -Uz compinit
+compinit
 
 # Ngrok autocompletion
 if command -v ngrok &>/dev/null; then
