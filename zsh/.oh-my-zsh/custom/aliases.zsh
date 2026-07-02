@@ -7,9 +7,6 @@ function gaa() {
 }
 
 alias lg='lazygit'
-# Fixes random char print to console. opencode sends raw OSC52 clipboard sequence and tmux has allow-passthrough on
-alias opencode='env -u TMUX opencode'
-alias oc='opencode'
 
 alias gb='git branch'
 alias gd='git diff'
@@ -118,6 +115,9 @@ alias tkw='tmux kill-window'
 
 # ai
 alias claude="claude --allow-dangerously-skip-permissions"
+# Fixes random char print to console. opencode sends raw OSC52 clipboard sequence and tmux has allow-passthrough on
+alias opencode='env -u TMUX opencode'
+alias oc='opencode'
 
 function minimetis-kill-pod() {
   local podName=${1:-"api"}
