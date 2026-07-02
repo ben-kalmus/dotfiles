@@ -119,6 +119,9 @@ alias claude="claude --allow-dangerously-skip-permissions"
 alias opencode='env -u TMUX opencode'
 alias oc='opencode'
 
+# algolia tools
+alias enablers-token="vault read --field=token identity/oidc/token/enablers"
+
 function minimetis-kill-pod() {
   local podName=${1:-"api"}
   local namespace=${2:-"minimetis"}
